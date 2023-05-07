@@ -5,7 +5,7 @@
             "name": "Debug C++",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/Debug/bin/vector", // 指定可执行文件路径
+            "program": "${workspaceFolder}/build/Debug/bin/containers", // 指定可执行文件路径
             "args": [], // 可执行文件运行参数
             "stopAtEntry": true,
             "cwd": "${workspaceFolder}",
