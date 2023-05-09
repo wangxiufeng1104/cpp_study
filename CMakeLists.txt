@@ -5,7 +5,8 @@ include(cmake/util.cmake)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_OUTPUT_EXTENSION_REPLACE 1)
 set(CMAKE_CXX_OUTPUT_EXTENSION_REPLACE 1)
-
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=libstdc++")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17") # set C++ 11
 #set the build type
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)

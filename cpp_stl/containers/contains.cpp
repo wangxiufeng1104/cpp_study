@@ -852,6 +852,7 @@ namespace jj09
     }
 }
 //---------------------------------------------------
+#if 0
 #include <ext\slist>
 // 注意, 上一行並沒有引發警告訊息如 #include <ext\hash_set> 所引發者：
 //...\4.9.2\include\c++\backward\backward_warning.h
@@ -889,6 +890,8 @@ namespace jj10
         cout << "milli-seconds : " << (static_cast<double>(clock() - timeStart) / CLOCKS_PER_SEC * 1000) << endl;
     }
 }
+#endif
+#if 0
 //---------------------------------------------------
 /*
 以下測試 hash_multiset, hash_multimap 過程中遇到阻礙：
@@ -902,7 +905,7 @@ headers <hash_set> 和 <hash_map> 各有兩個，
 so, 放棄測試 (no insertion or push_back or ...).
 */
 
-// #include <ext\hash_set>
+#include <ext\hash_set>
 //...\4.9.2\include\c++\backward\backward_warning.h
 //[Warning] #warning This file includes at least one deprecated or antiquated header
 // which may be removed without further notice at a future date.
@@ -942,7 +945,9 @@ namespace jj11
         cout << "milli-seconds : " << (static_cast<double>(clock() - timeStart) / CLOCKS_PER_SEC * 1000) << endl;
     }
 }
+#endif
 //---------------------------------------------------
+#if 0
 #include <ext\hash_map>
 //...\4.9.2\include\c++\backward\backward_warning.h
 //[Warning] #warning This file ... (如上個函數所言)
@@ -982,6 +987,7 @@ namespace jj12
         cout << "milli-seconds : " << (static_cast<double>(clock() - timeStart) / CLOCKS_PER_SEC * 1000) << endl;
     }
 }
+#endif
 //---------------------------------------------------
 #include <set>
 #include <stdexcept>
@@ -1288,6 +1294,62 @@ namespace jj17
     }
 }
 //---------------------------------------------------
+#include <set>
+#include <stdexcept>
+#include <string>
+#include <cstdlib> //abort()
+#include <cstdio>  //snprintf()
+#include <iostream>
+#include <ctime>
+namespace jj18
+{
+    void test_set(long &value)
+    {
+        cout << "\n test_set() .....\n";
+        set<uint32_t> c;
+        clock_t timeStart = clock();
+        uint32_t target;
+        for (long i = 0; i < value; ++i)
+        {
+            try
+            {
+                uint32_t temp = rand();
+                // cout << temp << endl;
+                c.insert(temp);
+                target = temp;
+            }
+            catch (const std::exception &e)
+            {
+                cout << "i=" << i << " " << e.what() << endl;
+                abort();
+            }
+        }
+        cout << "milli-seconds : " << (static_cast<double>(clock() - timeStart) / CLOCKS_PER_SEC * 1000) << endl;
+        cout << "set.size()= " << c.size() << endl;
+        cout << "set.max_size()= " << c.max_size() << endl; // 214748364
+
+        // for(auto it = c.begin(); it != c.end(); it ++)
+        // {
+        //     cout << *it << endl;
+        // }
+
+        timeStart = clock();
+        auto pItem = find(c.begin(), c.end(), target); // 比 c.find(...) 慢很多
+        cout << "std::find(), milli-seconds : " << (static_cast<double>(clock() - timeStart) / CLOCKS_PER_SEC * 1000) << endl;
+        if (pItem != c.end())
+            cout << "found, " << *pItem << endl;
+        else
+            cout << "not found! " << endl;
+        timeStart = clock();
+        pItem = c.find(target);
+        cout << "std::find(), milli-seconds : " << (static_cast<double>(clock() - timeStart) / CLOCKS_PER_SEC * 1000) << endl;
+        if (pItem != c.end())
+            cout << "found, " << *pItem << endl;
+        else
+            cout << "not found! " << endl;
+    }
+}
+//---------------------------------------------------
 #include <cstdlib> //rand() and RAND_MAX
 namespace jjxx
 {
@@ -1331,8 +1393,32 @@ namespace jjxx
         case 6:
             jj06::test_multiset(value);
             break;
+        case 7:
+            jj07::test_multimap(value);
+            break;
+        case 8:
+            jj08::test_unordered_multiset(value);
+            break;
+        case 9:
+            jj09::test_unordered_multimap(value);
+            break;
+        case 13:
+            jj13::test_set(value);
+            break;
+        case 14:
+            jj14::test_map(value);
+            break;
+        case 15:
+            jj15::test_unordered_set(value);
+            break;
+        case 16:
+            jj16::test_unordered_map(value);
+            break;
         case 17:
             jj17::test_stack(value);
+            break;
+        case 18:
+            jj18::test_set(value);
             break;
         default:
             break;
