@@ -28,3 +28,4 @@ set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/bin)
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/cpp_stl) 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/cpp_basic) 
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/design_patterns)
