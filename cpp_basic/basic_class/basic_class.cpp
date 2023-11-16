@@ -55,7 +55,14 @@ void dump_class(const myClass &my)
 {
     cout << "address " << &my << endl <<"dump " << my << endl;
 }
-
+// void handleMessage(std::string& message)
+// {
+//     std::cout << "handle message with lvalue reference" << message << std::endl;
+// }
+void handleMessage(std::string&& message)
+{
+    std::cout << "handle message with rvalue reference" << message << std::endl;
+}
 int main()
 {
     // 1、重载
@@ -92,6 +99,12 @@ int main()
     obj1.dis();
     cout << "################operate + ###############" << endl;
 
-
+    // 右值引用
+    string value1 {"hello "};
+    string b {"world"};
+    handleMessage(std::move(b)); // lvalue reference
+    handleMessage(value1 + b); // rvalue reference
+    handleMessage("value test "); // rvalue reference
+    
     cout << "good bye" << endl;
 }
