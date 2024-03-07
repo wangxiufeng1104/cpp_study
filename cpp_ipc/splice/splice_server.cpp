@@ -1,3 +1,9 @@
+/*
+自从linux 2.6.9后linux提供了驱动级的系统函数splice。 
+它的作用是在文件描述符直接转发数据，直接对内核内存块做引用标记而不需要借用用户内存复制数据。 
+这样就大大节省了分配内存，再read和write的性能消耗
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
