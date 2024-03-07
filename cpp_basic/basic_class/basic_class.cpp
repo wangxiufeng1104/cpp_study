@@ -1,6 +1,8 @@
 #include <iostream>
 using namespace std;
 
+// explicit 禁止隐式类型转换
+// delete  禁用或删除某个特定函数
 // 重载 编译器选择参数类型匹配的那个函数
 class myClass
 {
@@ -8,17 +10,19 @@ private:
     /* data */
     int m_data{0};
     int m_data_1{0};
+    const int mId ; // const 数据成员需要在ctor-initializer初始化
 
 public:
     // explicit 禁止隐式类型转换，myClass m = 4 提示 error: conversion from ‘int’ to non-scalar type ‘myClass’ requested
-    explicit myClass(int data) : m_data(data) { cout << "int constructor function" << endl; }
-    explicit myClass(const string &str) : m_data(stoi(str)) { cout << "string constructor function" << endl; }
+    explicit myClass(int data) : m_data(data),mId(data) { cout << "int constructor function" << endl; }
+    explicit myClass(const string &str) : m_data(stoi(str)),mId(stoi(str)) { cout << "string constructor function" << endl; }
+    //myClass(const string& str) = delete;   
     // 委托构造函数
-    myClass(int a, const string &str) : m_data(a), m_data_1(stoi(str)) { cout << "int and string constructor" << endl; }
+    myClass(int a, const string &str) : m_data(a), m_data_1(stoi(str)),mId(a) { cout << "int and string constructor" << endl; }
     myClass() : myClass(1234, "4321"s) { cout << "delegating constructor function" << endl; }
     void dis() const { cout << m_data << endl; }
     // 拷贝构造函数
-    myClass(const myClass &src)
+    myClass(const myClass &src) : mId(100)
     {
         cout << "copy constructor function" << endl;
         this->m_data = src.m_data;
@@ -30,9 +34,35 @@ public:
         cout << "赋值运算符" << endl;
         return *this;
     }
-    ~myClass() {}
+    myClass &operator+(const myClass& my)
+    {
+        this->m_data += my.m_data;
+        return *this;
+    }
+    myClass &operator+=(const myClass& my)
+    {
+        this->m_data += my.m_data;
+        return *this;
+    }
+    ~myClass() {cout << "desconstor" << m_data << endl;}
 };
-
+std::ostream& operator<<(std::ostream& os, const myClass& obj) 
+{
+    obj.dis();
+    return os;
+}
+void dump_class(const myClass &my)
+{
+    cout << "address " << &my << endl <<"dump " << my << endl;
+}
+// void handleMessage(std::string& message)
+// {
+//     std::cout << "handle message with lvalue reference" << message << std::endl;
+// }
+void handleMessage(std::string&& message)
+{
+    std::cout << "handle message with rvalue reference" << message << std::endl;
+}
 int main()
 {
     // 1、重载
@@ -58,5 +88,23 @@ int main()
     cout << "赋值后" << endl;
     a1.dis();
 
+    cout << "addr1 " << &a1 << endl;
+    dump_class(a1);
+
+
+    // operate+
+    cout << "################operate + ###############" << endl;
+    myClass obj1(333),obj2(444);
+    obj1 = obj1 + obj2;
+    obj1.dis();
+    cout << "################operate + ###############" << endl;
+
+    // 右值引用
+    string value1 {"hello "};
+    string b {"world"};
+    handleMessage(std::move(b)); // lvalue reference
+    handleMessage(value1 + b); // rvalue reference
+    handleMessage("value test "); // rvalue reference
+    
     cout << "good bye" << endl;
 }
