@@ -2,6 +2,7 @@
 #include "Cell.h"
 #include <stdexcept>
 #include <iostream>
+#include <vector>
 class Spreadsheet
 {
 private:
@@ -48,9 +49,77 @@ public:
 };
 
 
+class AAAAA
+{
+public:
+    int value;
+    AAAAA(){}
+    ~AAAAA(){}
+
+    virtual  AAAAA &operator=(const AAAAA &other)
+    {
+        std::cout << "operator=" << std::endl;
+        this->value = other.value;
+
+        return *this;
+    }
+};
+
+class BBBB : public AAAAA
+{
+public:
+    int value1;
+
+    BBBB &operator=(const BBBB &other)
+    {
+        std::cout << "BBBB operator=" << std::endl;
+        this->value1 = other.value1;
+
+        return *this;
+    }
+};
+class CCCC : public AAAAA
+{
+public:
+    int value1;
+
+    CCCC &operator=(const CCCC &other) 
+    {
+        std::cout << "CCCC operator=" << std::endl;
+        this->value1 = other.value1;
+
+        return *this;
+    }
+};
+
+void com(AAAAA *A1, AAAAA *A2)
+{
+    if (dynamic_cast<BBBB*>(A1)) 
+    {
+        BBBB *B1 = dynamic_cast<BBBB*>(A1);
+        BBBB *B2 = dynamic_cast<BBBB*>(A2);
+
+        *B1 = *B2;
+
+    }
+    else if(dynamic_cast<CCCC*>(A1))
+    {
+        CCCC *C1 = dynamic_cast<CCCC*>(A1);
+        CCCC *C2 = dynamic_cast<CCCC*>(A2);
+
+        *C1 = *C2;
+    }
+}
+
 int main()
 {
-    Spreadsheet s1{2,3}, s2{4,3};
-    //s2 = s1;
+    int i ;
+    for( i = 0; i < 10; i = 100)
+    {
+        printf("i = %d", i);
+    }
+    printf("i = %d", i);
+    
+
     return 0;
 }

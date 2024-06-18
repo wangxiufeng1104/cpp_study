@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(ringqueue_test)
+project(cpp_study)
 include(cmake/util.cmake)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -25,6 +25,7 @@ endif()
 
 set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/lib)
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/bin)
+set(EXECUTABLE_TOOL_PATH ${CMAKE_CURRENT_SOURCE_DIR}/shared/bin)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/shared/include)
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/shared/libs)
 
