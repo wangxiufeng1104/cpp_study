@@ -1,0 +1,48 @@
+{
+    "Int": 1,
+    "Double": 3.1415926,
+    "String": "This is a string",
+    "Object": {
+        "name": "arno",
+        "age": 25
+    },
+    "IntArray": [
+        10,
+        20,
+        30
+    ],
+    "DoubleArray": [
+        0,
+        1,
+        2,
+        3
+    ],
+    "StringArray": [
+        "one",
+        "two",
+        "three"
+    ],
+    "MixedArray": [
+        "one",
+        50,
+        false,
+        12.005
+    ],
+    "People": [
+        {
+            "name": "arno",
+            "age": 0,
+            "sex": true
+        },
+        {
+            "name": "arno",
+            "age": 10,
+            "sex": false
+        },
+        {
+            "name": "arno",
+            "age": 20,
+            "sex": true
+        }
+    ]
+}
