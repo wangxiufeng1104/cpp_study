@@ -25,8 +25,11 @@ endif()
 
 set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/lib)
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/bin)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/shared/include)
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/shared/libs)
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/cpp_stl) 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/cpp_basic) 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/design_patterns)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/cpp_ipc)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/opensource_test)
