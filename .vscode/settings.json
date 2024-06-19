@@ -68,6 +68,9 @@
         "semaphore": "cpp",
         "stop_token": "cpp",
         "variant": "cpp",
-        "*.inc": "cpp"
+        "*.inc": "cpp",
+        "any": "cpp",
+        "codecvt": "cpp",
+        "iomanip": "cpp"
     }
 }

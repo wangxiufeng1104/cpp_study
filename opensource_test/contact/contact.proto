@@ -1,0 +1,32 @@
+// 指定采用proto3语法
+syntax = "proto3";
+
+import "any.proto";
+// 相当于命名空间
+package contacts;
+
+
+message PeopleInfo{
+    string name = 1;//不是赋值而是指定唯一编号
+    int32 age = 2;
+    message Phone{   
+        string number = 1;
+        enum PhoneType{
+            MOBILE = 0;
+            FIXED = 1;
+        }
+        PhoneType tyepe = 2;
+    }
+    repeated Phone phone = 3;
+    google.protobuf.Any addr = 4;
+    oneof other_contact{
+        string qq = 5;
+        string wechat = 6;
+    }
+    map<string, string> remark = 7;
+}
+
+message Contact{
+    repeated PeopleInfo contact = 1;
+}
+
