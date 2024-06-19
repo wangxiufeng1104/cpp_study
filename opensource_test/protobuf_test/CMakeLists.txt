@@ -16,14 +16,20 @@ foreach(PROTO_FILE ${PROTO_FILES})
     add_custom_command(
         OUTPUT ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/${PROTO_NAME}.pb.cc ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/${PROTO_NAME}.pb.h
         COMMAND ${EXECUTABLE_TOOL_PATH}/protoc-3.21.7.0
-        ARGS --cpp_out=${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE} --proto_path=${CMAKE_CURRENT_SOURCE_DIR} ${PROTO_FILE}
+        ARGS -I=${CMAKE_CURRENT_SOURCE_DIR}/proto --cpp_out=${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE} --proto_path=${CMAKE_CURRENT_SOURCE_DIR} ${PROTO_FILE}
         DEPENDS ${PROTO_FILE}
     )
 endforeach()
 
-aux_source_directory (${CMAKE_CURRENT_SOURCE_DIR} SRC)
+set(WRITER_SRC ${CMAKE_CURRENT_SOURCE_DIR}/testwrite.cpp)
+set(READER_SRC ${CMAKE_CURRENT_SOURCE_DIR}/testread.cpp)
 # 添加生成文件到源码列表
-list(APPEND SRC ${GENERATED_SRC})
-add_executable(${APP} ${SRC})
-target_link_libraries(${APP} protobuf pthread)
-target_include_directories(${APP} PRIVATE ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE})
+list(APPEND WRITER_SRC ${GENERATED_SRC})
+add_executable(writer ${WRITER_SRC})
+target_link_libraries(writer protobuf pthread)
+target_include_directories(writer PRIVATE ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE})
+
+list(APPEND READER_SRC ${GENERATED_SRC})
+add_executable(reader ${READER_SRC})
+target_link_libraries(reader protobuf pthread)
+target_include_directories(reader PRIVATE ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE})
