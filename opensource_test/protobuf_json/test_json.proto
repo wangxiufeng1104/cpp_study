@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package JSON_TEST;
+message Person {
+    string name = 1;
+    uint32 age = 2;
+    bool sex = 3;
+}
+message json{
+    int32 Int = 1;
+    double Double = 2;
+    string String = 3;
+    message name_age{
+        string name = 1;
+        uint32 age = 2;
+    }
+    name_age Object  = 4;
+    repeated int32 IntArray = 5;
+    repeated double DoubleArray = 6;
+    repeated string StringArray = 7;
+    repeated Person People = 8;
+    map<string, string> map_str_str = 9;
+    map<int32, string> map_int_str = 10;
+    map<string, int32> map_str_int = 11;
+
+
+}
