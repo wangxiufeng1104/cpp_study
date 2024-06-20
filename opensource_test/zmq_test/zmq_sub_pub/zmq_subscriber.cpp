@@ -1,14 +1,70 @@
 #include <iostream>
 #include "zmq/zmq.hpp"
 #include "message.pb.h"
-int main()
+#define TCP_PUB "tcp://127.0.0.1:5556"
+int main(int argc, char **argv)
 {
     std::cout << "start sub node ..." << std::endl;
 
-    while(1)
+    zmq::context_t ctx(1);
+    zmq::socket_t subscriber(ctx, zmq::socket_type::sub);
+    subscriber.connect(TCP_PUB);
+    for (int i = 0; i < argc - 1; i++)
     {
-        zmq_sleep(1);
-        std::cout << "running sub node ..." << std::endl;
+        char *topic = argv[1 + i];
+        std::cout << topic << std::endl;
+        subscriber.setsockopt(ZMQ_SUBSCRIBE, topic, strlen(topic));
+    }
+    while (1)
+    {
+        zmq::message_t topic;
+        zmq::message_t zmq_msg;
+        zmq::recv_result_t result;
+        result = subscriber.recv(topic);
+        if (result.has_value())
+        {
+            std::cout << "recv data : " << topic.data() << std::endl;
+        }
+        else
+        {
+            continue;
+        }
+        result = subscriber.recv(zmq_msg, zmq::recv_flags::none);
+        if (result.has_value())
+        {
+            // 反序列化消息
+            WrapperMessage wrapper_msg;
+            wrapper_msg.ParseFromArray(zmq_msg.data(), zmq_msg.size());
+
+            switch (wrapper_msg.message_type_case())
+            {
+            case WrapperMessage::kPeople:
+            {
+                const msg_people &people_msg = wrapper_msg.people();
+                std::cout << "Received message on topic " << wrapper_msg.topic()
+                          << ": Name = " << people_msg.name()
+                          << ", Age = " << people_msg.age() << std::endl;
+            }
+            break;
+            case WrapperMessage::kAddress:
+            {
+                const msg_address &addr = wrapper_msg.address();
+                std::cout << "Received message on topic " << wrapper_msg.topic()
+                          << ": City = " << addr.city()
+                          << ", Street = " << addr.street() << std::endl;
+            }
+            break;
+            default:
+            {
+                std::cout << "unknow topic " << wrapper_msg.topic();
+            }
+            break;
+            }
+        }
+        else
+        {
+            std::cerr << "Failed to receive message" << std::endl;
+        }
     }
     return 0;
 }

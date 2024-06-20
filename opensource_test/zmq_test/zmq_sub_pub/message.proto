@@ -1,18 +1,19 @@
 syntax = "proto3";
-message people
+message msg_people
 {
     string name = 1;
     int32 age = 2;
 }
-message address
+message msg_address
 {
-    string addr = 1;
-    int32 code = 2;
+    string street = 1;
+    string city = 2;
 }
 
 message WrapperMessage {
+    string topic = 1;
     oneof message_type {
-        people peop = 1;
-        address addr = 2;
+        msg_people people = 2;
+        msg_address address = 3;
     }
 }
