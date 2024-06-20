@@ -2,6 +2,12 @@
 #include "zmq/zmq.hpp"
 #include "message.pb.h"
 #define TCP_PUB "tcp://127.0.0.1:5556"
+std::string timestamp_to_string(uint64_t timestamp) {
+    std::time_t time = timestamp / 1000000;  // 转换到秒
+    std::stringstream ss;
+    ss << std::put_time(std::localtime(&time), "%Y-%m-%d %H:%M:%S");
+    return ss.str();
+}
 int main(int argc, char **argv)
 {
     std::cout << "start sub node ..." << std::endl;
@@ -11,9 +17,9 @@ int main(int argc, char **argv)
     subscriber.connect(TCP_PUB);
     for (int i = 0; i < argc - 1; i++)
     {
-        char *topic = argv[1 + i];
-        std::cout << topic << std::endl;
-        subscriber.setsockopt(ZMQ_SUBSCRIBE, topic, strlen(topic));
+        const char *filter = argv[1 + i];
+        std::cout << filter << std::endl;
+        subscriber.set(zmq::sockopt::subscribe, filter);
     }
     while (1)
     {
@@ -23,7 +29,8 @@ int main(int argc, char **argv)
         result = subscriber.recv(topic);
         if (result.has_value())
         {
-            std::cout << "recv data : " << topic.data() << std::endl;
+            std::string str(static_cast<char *>(topic.data()), topic.size());
+            std::cout << "recv data : " << str << std::endl;
         }
         else
         {
@@ -33,23 +40,26 @@ int main(int argc, char **argv)
         if (result.has_value())
         {
             // 反序列化消息
-            WrapperMessage wrapper_msg;
+            MSG::WrapperMessage wrapper_msg;
             wrapper_msg.ParseFromArray(zmq_msg.data(), zmq_msg.size());
+            uint64_t ts = wrapper_msg.timestamp();
 
             switch (wrapper_msg.message_type_case())
             {
-            case WrapperMessage::kPeople:
+            case MSG::WrapperMessage::kPeople:
             {
-                const msg_people &people_msg = wrapper_msg.people();
-                std::cout << "Received message on topic " << wrapper_msg.topic()
+                const MSG::msg_people &people_msg = wrapper_msg.people();
+                std::cout << "[" << timestamp_to_string(ts) << "] "
+                          << "Received message on topic " << wrapper_msg.topic()
                           << ": Name = " << people_msg.name()
                           << ", Age = " << people_msg.age() << std::endl;
             }
             break;
-            case WrapperMessage::kAddress:
+            case MSG::WrapperMessage::kAddress:
             {
-                const msg_address &addr = wrapper_msg.address();
-                std::cout << "Received message on topic " << wrapper_msg.topic()
+                const MSG::msg_address &addr = wrapper_msg.address();
+                std::cout << "[" << timestamp_to_string(ts) << "] "
+                          << "Received message on topic " << wrapper_msg.topic()
                           << ": City = " << addr.city()
                           << ", Street = " << addr.street() << std::endl;
             }

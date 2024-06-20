@@ -4,15 +4,22 @@
 #include <random>
 #include <string>
 #include <thread>
+#include <sys/time.h>
 #define TCP_SUB "tcp://127.0.0.1:5555"
 using namespace std::chrono_literals;
+uint64_t getTimestamp_us(void)
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return ((tv.tv_sec * 1000000) + (tv.tv_usec));
+}
 int main()
 {
     std::cout << "start pub node ..." << std::endl;
 
-    WrapperMessage wrapper_msg;
-    msg_people *people_msg;
-    msg_address *addr_msg;
+    MSG::WrapperMessage wrapper_msg;
+    MSG::msg_people *people_msg;
+    MSG::msg_address *addr_msg;
 
     zmq::context_t ctx(1);
     zmq::socket_t publisher(ctx, zmq::socket_type::pub);
@@ -35,12 +42,13 @@ int main()
         else
         {
             std::cout << "send people" << std::endl;
-            people_msg = new msg_people();
+            people_msg = new MSG::msg_people();
             people_msg->set_name("arno");
             people_msg->set_age(20);
             wrapper_msg.set_topic("people");
             wrapper_msg.set_allocated_people(people_msg);
         }
+        wrapper_msg.set_timestamp(getTimestamp_us());
 
         // 序列化消息
         std::string serialized_msg;
