@@ -33,7 +33,7 @@
 #endif
 
 // included here for _HAS_CXX* macros
-#include <zmq.h>
+#include "zmq.h"
 
 #if defined(_MSVC_LANG)
 #define CPPZMQ_LANG _MSVC_LANG
