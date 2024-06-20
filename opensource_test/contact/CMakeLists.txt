@@ -11,12 +11,12 @@ set(GENERATED_HDR)
 # 遍历每个 .proto 文件并生成相应的 .pb.cc 和 .pb.h 文件
 foreach(PROTO_FILE ${PROTO_FILES})
     get_filename_component(PROTO_NAME ${PROTO_FILE} NAME_WE)
-    list(APPEND GENERATED_SRC "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/${PROTO_NAME}.pb.cc")
-    list(APPEND GENERATED_HDR "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/${PROTO_NAME}.pb.h")
+    list(APPEND GENERATED_SRC "${CMAKE_CURRENT_BINARY_DIR}/${PROTO_NAME}.pb.cc")
+    list(APPEND GENERATED_HDR "${CMAKE_CURRENT_BINARY_DIR}/${PROTO_NAME}.pb.h")
     add_custom_command(
-        OUTPUT ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/${PROTO_NAME}.pb.cc ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/${PROTO_NAME}.pb.h
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${PROTO_NAME}.pb.cc ${CMAKE_CURRENT_BINARY_DIR}/${PROTO_NAME}.pb.h
         COMMAND ${EXECUTABLE_TOOL_PATH}/protoc-3.21.7.0
-        ARGS --cpp_out=${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE} --proto_path=${CMAKE_CURRENT_SOURCE_DIR} ${PROTO_FILE}
+        ARGS --cpp_out=${CMAKE_CURRENT_BINARY_DIR} --proto_path=${CMAKE_CURRENT_SOURCE_DIR} ${PROTO_FILE}
         DEPENDS ${PROTO_FILE}
     )
 endforeach()
@@ -25,5 +25,5 @@ aux_source_directory (${CMAKE_CURRENT_SOURCE_DIR} SRC)
 list(APPEND SRC ${GENERATED_SRC})
 add_executable(${APP} ${SRC})
 target_link_libraries(${APP} protobuf pthread)
-target_include_directories(${APP} PRIVATE ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE})
+target_include_directories(${APP} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 

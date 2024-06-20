@@ -14,22 +14,22 @@ foreach(PROTO_FILE ${PROTO_FILES})
     list(APPEND GENERATED_SRC "${CMAKE_CURRENT_BINARY_DIR}/${PROTO_NAME}.pb.cc")
     list(APPEND GENERATED_HDR "${CMAKE_CURRENT_BINARY_DIR}/${PROTO_NAME}.pb.h")
     add_custom_command(
-        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${PROTO_NAME}.pb.cc ${CMAKE_CURRENT_BINARY_DIR}/${PROTO_NAME}.pb.h
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${PROTO_NAME}.pb.cc ${CMAKE_CURRENT_BINARY_DIR}.pb.h
         COMMAND ${EXECUTABLE_TOOL_PATH}/protoc-3.21.7.0
         ARGS -I=${CMAKE_CURRENT_SOURCE_DIR}/proto --cpp_out=${CMAKE_CURRENT_BINARY_DIR} --proto_path=${CMAKE_CURRENT_SOURCE_DIR} ${PROTO_FILE}
         DEPENDS ${PROTO_FILE}
     )
 endforeach()
 
-set(WRITER_SRC ${CMAKE_CURRENT_SOURCE_DIR}/testwrite.cpp)
-set(READER_SRC ${CMAKE_CURRENT_SOURCE_DIR}/testread.cpp)
-
-function(add_protobuf_executable target_name src_files)
+set(PROXY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/zmq_proxy.cpp)
+set(PUB_SRC ${CMAKE_CURRENT_SOURCE_DIR}/zmq_publisher.cpp)
+set(SUB_SRC ${CMAKE_CURRENT_SOURCE_DIR}/zmq_subscriber.cpp)
+function(add_zmq_executable target_name src_files)
     list(APPEND src_files ${GENERATED_SRC})
     add_executable(${target_name} ${src_files})
-    target_link_libraries(${target_name} protobuf pthread)
+    target_link_libraries(${target_name} protobuf pthread zmq)
     target_include_directories(${target_name} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 endfunction()
-add_protobuf_executable(protobuf_writer "${WRITER_SRC}")
-add_protobuf_executable(protobuf_reader "${READER_SRC}")
-
+add_zmq_executable(zmq_proxy "${PROXY_SRC}")
+add_zmq_executable(zmq_publisher "${PUB_SRC}")
+add_zmq_executable(zmq_subscriber "${SUB_SRC}")
