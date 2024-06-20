@@ -5,14 +5,12 @@
 #include <string>
 #include <thread>
 #include <sys/time.h>
+#include "google/protobuf/util/time_util.h"
 #define TCP_SUB "tcp://127.0.0.1:5555"
 using namespace std::chrono_literals;
-uint64_t getTimestamp_us(void)
-{
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return ((tv.tv_sec * 1000000) + (tv.tv_usec));
-}
+using google::protobuf::Timestamp;
+using google::protobuf::util::TimeUtil;
+
 int main()
 {
     std::cout << "start pub node ..." << std::endl;
@@ -48,7 +46,10 @@ int main()
             wrapper_msg.set_topic("people");
             wrapper_msg.set_allocated_people(people_msg);
         }
-        wrapper_msg.set_timestamp(getTimestamp_us());
+        Timestamp timestamp;
+        timestamp.set_seconds(time(NULL));
+        timestamp.set_nanos(0);
+        *wrapper_msg.mutable_timestamp() = timestamp;
 
         // 序列化消息
         std::string serialized_msg;

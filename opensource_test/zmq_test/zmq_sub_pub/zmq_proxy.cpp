@@ -21,7 +21,7 @@ int main()
 
     frontend.close();
 
-    backend.close();    
+    backend.close();
 
     return 0;
 }

@@ -71,6 +71,7 @@
         "*.inc": "cpp",
         "any": "cpp",
         "codecvt": "cpp",
-        "iomanip": "cpp"
+        "iomanip": "cpp",
+        "shared_mutex": "cpp"
     }
 }
