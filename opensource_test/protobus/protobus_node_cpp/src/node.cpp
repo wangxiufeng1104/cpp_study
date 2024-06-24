@@ -1,5 +1,5 @@
 #include <iostream>
-#include "protobus.h"
+#include "protobus.hpp"
 #include <libgen.h>
 #include <unistd.h>
 #include "google/protobuf/util/time_util.h"
@@ -55,7 +55,7 @@ void protobus_callback(const MSG::WrapperMessage &msg)
 int main(int argc, char **argv)
 {
     int nodeType = 0;
-    if(strcmp(argv[1], "sub") == 0)
+    if (strcmp(argv[1], "sub") == 0)
     {
         nodeType = 0;
     }

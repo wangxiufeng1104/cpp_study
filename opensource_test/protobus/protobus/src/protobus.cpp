@@ -1,5 +1,5 @@
 #include "zmq/zmq.hpp"
-#include "protobus.h"
+#include "protobus.hpp"
 #include <iostream>
 #include <thread>
 #include <mutex>
@@ -9,10 +9,12 @@
 #include "google/protobuf/util/time_util.h"
 #include "message.pb.h"
 #include <unordered_map>
+#include <utility>
+#include <algorithm>
 using namespace std;
 using google::protobuf::Timestamp;
 using google::protobuf::util::TimeUtil;
-
+#define TOPIC_MAP
 uint8_t sendBuf[65535];
 struct protobus_handle
 {
@@ -29,8 +31,12 @@ struct protobus_handle
     /* topic */
     std::mutex topicMutex;
     std::condition_variable topicCond;
+#ifdef TOPIC_MAP
     /* topic map */
     std::unordered_map<string, protobus_cb> topicMap;
+#else
+    std::vector<std::pair<string, protobus_cb>> topicVec;
+#endif
     /* protobuf msg */
     std::queue<std::shared_ptr<MSG::WrapperMessage>> msgQueue;
     std::mutex queueMutex;
@@ -100,23 +106,28 @@ static std::shared_ptr<MSG::WrapperMessage> get_msg(protobus_handle_t *handle)
 }
 static void sub_task(protobus_handle_t *handle)
 {
-    
-    printf("start sub task\n");
     while (handle->isRunning)
     {
-
         std::unique_lock<mutex> lock(handle->topicMutex);
-        handle->queueCond.wait(lock, [&handle]
+#ifdef TOPIC_MAP
+        handle->topicCond.wait(lock, [&handle]
                                { return !handle->topicMap.empty(); });
+#else
+        handle->topicCond.wait(lock, [&handle]
+                               { return !handle->topicVec.empty(); });
+#endif
         lock.unlock();
 
-        zmq::message_t topic;
+        zmq::message_t zmq_topic;
         zmq::message_t zmq_msg;
 
-        zmq::recv_result_t result = handle->sub->recv(topic);
+        zmq::recv_result_t result = handle->sub->recv(zmq_topic);
         if (result.has_value())
         {
-            std::string topic(static_cast<char *>(topic.data()), topic.size());
+
+            std::string topic(static_cast<char *>(zmq_topic.data()), zmq_topic.size());
+            std::cout << "recv data " << topic << std::endl;
+#ifdef TOPIC_MAP
             auto it = handle->topicMap.find(topic);
             if (it != handle->topicMap.end())
             {
@@ -128,9 +139,31 @@ static void sub_task(protobus_handle_t *handle)
                     it->second(wrapper_msg);
                 }
             }
+#else
+            std::vector<std::pair<std::string, protobus_cb>>::iterator it;
+            for (it = handle->topicVec.begin(); it != handle->topicVec.end(); ++it)
+            {
+
+                if (topic.find(it->first) != std::string::npos)
+                {
+                    break;
+                }
+            }
+            if (it != handle->topicVec.end())
+            {
+                result = handle->sub->recv(zmq_msg, zmq::recv_flags::none);
+                if (result.has_value())
+                {
+                    MSG::WrapperMessage wrapper_msg;
+                    wrapper_msg.ParseFromArray(zmq_msg.data(), zmq_msg.size());
+                    it->second(wrapper_msg);
+                }
+            }
+#endif
         }
         else
         {
+            printf("not has value and continue\n");
             continue;
         }
     }
@@ -195,7 +228,7 @@ protobus_handle_t *protobus_init(const char *node_name, vector<string> topics, p
         for (auto it = topics.begin(); it != topics.end(); it++)
         {
 
-            printf("add sub topic %s\n", (*it).data());
+            printf("%d add sub topic %s\n", __LINE__, (*it).data());
             protobus_add_subscriber(handle, (*it).data(), cb);
         }
     }
@@ -224,14 +257,39 @@ static void subscriber_init(protobus_handle_t *handle)
 void protobus_add_subscriber(protobus_handle_t *handle, const char *topic, protobus_cb cb)
 {
     printf("handle %p\n", handle);
+    printf("%d protobus_add_subscriber add topic %s", __LINE__, topic);
     std::lock_guard<std::mutex> lock(handle->topicMutex);
+#ifdef TOPIC_MAP
     handle->topicMap[topic] = cb;
     handle->sub->set(zmq::sockopt::subscribe, topic);
     handle->topicCond.notify_one();
+#else
+    string topicStr(topic);
+    std::vector<std::pair<std::string, protobus_cb>>::iterator it;
+    for (it = handle->topicVec.begin(); it != handle->topicVec.end(); it++)
+    {
+        if ((*it).first == topicStr)
+        {
+            break;
+        }
+    }
+    if (it == handle->topicVec.end())
+    {
+        handle->topicVec.push_back(std::make_pair(topicStr, cb));
+        handle->sub->set(zmq::sockopt::subscribe, topic);
+        handle->topicCond.notify_one();
+    }
+    else
+    {
+        std::cerr << "Topic already exists." << std::endl;
+    }
+
+#endif
 }
 void protobus_del_subscriber(protobus_handle_t *handle, const char *topic)
 {
     std::lock_guard<std::mutex> lock(handle->topicMutex);
+#ifdef TOPIC_MAP
     auto it = handle->topicMap.find(topic);
     if (it != handle->topicMap.end())
     {
@@ -242,5 +300,24 @@ void protobus_del_subscriber(protobus_handle_t *handle, const char *topic)
     {
         std::cout << "topic " << topic << "' not found in map." << std::endl;
     }
+#else
+    std::vector<std::pair<std::string, protobus_cb>>::iterator it;
+    for (it = handle->topicVec.begin(); it != handle->topicVec.end(); ++it)
+    {
+        if (it->first == topic)
+        {
+            break;
+        }
+    }
+    if (it != handle->topicVec.end())
+    {
+        handle->topicVec.erase(it);
+        std::cout << "topic '" << topic << "' removed from vector." << std::endl;
+    }
+    else
+    {
+        std::cout << "topic '" << topic << "' not found in vector." << std::endl;
+    }
+#endif
     handle->sub->set(zmq::sockopt::unsubscribe, topic);
 }
