@@ -1,8 +1,8 @@
 # protobuf_helpers.cmake
 
-function(generate_protobuf_sources)
+function(generate_protobuf_sources PROTO_PATH)
     # 查找所有 .proto 文件
-    file(GLOB PROTO_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.proto")
+    file(GLOB PROTO_FILES "${PROTO_PATH}/*.proto")
 
     # 设置生成的源文件和头文件列表
     set(PROTOBUF_SRC_LIST)
@@ -18,7 +18,7 @@ function(generate_protobuf_sources)
         add_custom_command(
             OUTPUT ${PROTO_SRC} ${PROTO_HDR}
             COMMAND ${EXECUTABLE_TOOL_PATH}/protoc-3.21.7.0
-            ARGS -I=${CMAKE_CURRENT_SOURCE_DIR}/proto --cpp_out=${CMAKE_CURRENT_BINARY_DIR} --proto_path=${CMAKE_CURRENT_SOURCE_DIR} ${PROTO_FILE}
+            ARGS -I=${PROTO_PATH}/proto --cpp_out=${CMAKE_CURRENT_BINARY_DIR} --proto_path=${PROTO_PATH} ${PROTO_FILE}
             DEPENDS ${PROTO_FILE}
         )
     endforeach()

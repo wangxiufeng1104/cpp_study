@@ -1,0 +1,22 @@
+syntax = "proto3";
+package MSG;
+import "google/protobuf/timestamp.proto";
+message msg_people
+{
+    string name = 1;
+    int32 age = 2;
+}
+message msg_address
+{
+    string street = 1;
+    string city = 2;
+}
+
+message WrapperMessage {
+    string topic = 1;
+    google.protobuf.Timestamp timestamp = 2;
+    oneof message_type {
+        msg_people people = 3;
+        msg_address address = 4;
+    }
+}

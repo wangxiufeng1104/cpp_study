@@ -1,0 +1,6 @@
+SUBDIRLIST(SUBDIRS ${CMAKE_CURRENT_SOURCE_DIR})
+foreach(child ${SUBDIRS})
+    if(NOT ${child} STREQUAL "proto")
+        add_subdirectory(${child})
+    endif()
+endforeach()
