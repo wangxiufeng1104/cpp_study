@@ -85,7 +85,6 @@ int main(int argc, char **argv)
         sleep(1);
         if (nodeType == 1)
         {
-            printf("start send topic\n");
             std::random_device rd;
             std::mt19937 mt(rd());
             std::uniform_int_distribution<int> dist(0, 100); // 0到100的随机数

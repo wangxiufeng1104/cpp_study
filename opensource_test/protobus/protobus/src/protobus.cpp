@@ -49,7 +49,6 @@ static size_t send_msg(protobus_handle_t *handle, std::shared_ptr<MSG::WrapperMe
     uint8_t *bufPtr;
     bool releaseFlag = false;
     size_t sendSize = msg->ByteSizeLong();
-    std::cout << "send topic " << msg->topic() << endl;
     if (sendSize > sizeof(sendBuf))
     {
         dataBuf = std::make_unique<uint8_t[]>(sendSize + 1);
@@ -83,7 +82,6 @@ static size_t send_msg(protobus_handle_t *handle, std::shared_ptr<MSG::WrapperMe
         zmq::message_t zmq_msg(bufPtr, sendSize);
 
         handle->pub->send(zmq_msg, zmq::send_flags::dontwait);
-        std::cout << "send msg" << std::endl;
     }
     catch (const std::exception &e)
     {
@@ -96,10 +94,8 @@ static std::shared_ptr<MSG::WrapperMessage> get_msg(protobus_handle_t *handle)
 {
     std::unique_lock<mutex> lock(handle->queueMutex);
     handle->queueCond.wait(lock, [&handle]
-                           {std::cout << "handle->msgQueue.size() = "<< handle->msgQueue.size() << std::endl; 
-                            return !handle->msgQueue.empty(); });
+                           { return !handle->msgQueue.empty(); });
     auto msgPtr = handle->msgQueue.front();
-    std::cout << "queue size " << handle->msgQueue.size() << std::endl;
     handle->msgQueue.pop();
     lock.unlock();
     return msgPtr;
@@ -126,7 +122,6 @@ static void sub_task(protobus_handle_t *handle)
         {
 
             std::string topic(static_cast<char *>(zmq_topic.data()), zmq_topic.size());
-            std::cout << "recv data " << topic << std::endl;
 #ifdef TOPIC_MAP
             auto it = handle->topicMap.find(topic);
             if (it != handle->topicMap.end())
@@ -163,7 +158,6 @@ static void sub_task(protobus_handle_t *handle)
         }
         else
         {
-            printf("not has value and continue\n");
             continue;
         }
     }
@@ -176,13 +170,11 @@ static void pub_task(protobus_handle_t *handle)
     zmq::context_t ctx(1);
     handle->pub = new zmq::socket_t(ctx, zmq::socket_type::pub);
     handle->pub->connect(TCP_SUB);
-    printf("start pub task\n");
     while (handle->isRunning)
     {
         auto msgPtr = get_msg(handle);
         if (msgPtr != nullptr)
         {
-            std::cout << "get msg ,start send" << std::endl;
             sendSize = send_msg(handle, msgPtr);
             if (sendSize != msgPtr->ByteSizeLong())
             {
@@ -209,7 +201,6 @@ protobus_handle_t *protobus_init(const char *node_name)
         thread t(pub_task, handle);
         t.detach();
         subscriber_init(handle);
-        printf("%d subscriber_init \n", __LINE__);
     }
     catch (const std::exception &e)
     {
@@ -217,7 +208,6 @@ protobus_handle_t *protobus_init(const char *node_name)
         delete handle;
         handle = nullptr;
     }
-    printf("%d return handle %p \n", __LINE__, handle);
     return handle;
 }
 protobus_handle_t *protobus_init(const char *node_name, vector<string> topics, protobus_cb cb)
@@ -228,7 +218,6 @@ protobus_handle_t *protobus_init(const char *node_name, vector<string> topics, p
         for (auto it = topics.begin(); it != topics.end(); it++)
         {
 
-            printf("%d add sub topic %s\n", __LINE__, (*it).data());
             protobus_add_subscriber(handle, (*it).data(), cb);
         }
     }
@@ -242,7 +231,6 @@ void protobus_send(protobus_handle_t *handle, const MSG::WrapperMessage &msg)
 {
     std::lock_guard<std::mutex> lock(handle->queueMutex);
     handle->msgQueue.push(std::make_shared<MSG::WrapperMessage>(msg));
-    std::cout << "push " << msg.topic() << std::endl;
     handle->queueCond.notify_one();
 }
 static void subscriber_init(protobus_handle_t *handle)
@@ -252,12 +240,9 @@ static void subscriber_init(protobus_handle_t *handle)
     handle->sub->connect(TCP_PUB);
     thread t(sub_task, handle);
     t.detach();
-    printf("%d subscriber_init \n", __LINE__);
 }
 void protobus_add_subscriber(protobus_handle_t *handle, const char *topic, protobus_cb cb)
 {
-    printf("handle %p\n", handle);
-    printf("%d protobus_add_subscriber add topic %s", __LINE__, topic);
     std::lock_guard<std::mutex> lock(handle->topicMutex);
 #ifdef TOPIC_MAP
     handle->topicMap[topic] = cb;
