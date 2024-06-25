@@ -5,11 +5,13 @@ message msg_people
 {
     string name = 1;
     int32 age = 2;
+    uint64 count = 3;
 }
 message msg_address
 {
     string street = 1;
     string city = 2;
+    uint64 count = 3;
 }
 
 message WrapperMessage {

@@ -22,8 +22,12 @@ std::string timestamp_to_string(uint64_t timestamp)
     ss << std::put_time(std::localtime(&time), "%Y-%m-%d %H:%M:%S");
     return ss.str();
 }
+
 void protobus_callback(const MSG::WrapperMessage &msg)
 {
+    static uint64_t address_recv_count = 0;
+    static uint64_t people_recv_count = 0;
+
     uint64_t time = msg.timestamp().seconds() * 1000000 + msg.timestamp().nanos();
     switch (msg.message_type_case())
     {
@@ -33,7 +37,9 @@ void protobus_callback(const MSG::WrapperMessage &msg)
         std::cout << "[" << timestamp_to_string(time) << "] "
                   << "Received message on topic " << msg.topic()
                   << ": Name = " << people_msg.name()
-                  << ", Age = " << people_msg.age() << std::endl;
+                  << ", Age = " << people_msg.age()
+                  << ", count = " << people_msg.count()
+                  << ", recv count = " << ++people_recv_count << std::endl;
     }
     break;
     case MSG::WrapperMessage::kAddress:
@@ -42,7 +48,9 @@ void protobus_callback(const MSG::WrapperMessage &msg)
         std::cout << "[" << timestamp_to_string(time) << "] "
                   << "Received message on topic " << msg.topic()
                   << ": City = " << addr.city()
-                  << ", Street = " << addr.street() << std::endl;
+                  << ", Street = " << addr.street()
+                  << ", count = " << addr.count()
+                  << ", recv count = " << ++address_recv_count << std::endl;
     }
     break;
     default:
@@ -52,6 +60,10 @@ void protobus_callback(const MSG::WrapperMessage &msg)
     break;
     }
 }
+MSG::WrapperMessage wrapper_msg;
+MSG::msg_people people_msg;
+MSG::msg_address addr_msg;
+#define SEND_COUNT 2000000
 int main(int argc, char **argv)
 {
     int nodeType = 0;
@@ -80,41 +92,53 @@ int main(int argc, char **argv)
     {
         handle = protobus_init(basename(argv[0]));
     }
+    sleep(1);
     while (1)
     {
-        sleep(1);
+
         if (nodeType == 1)
         {
-            std::random_device rd;
-            std::mt19937 mt(rd());
-            std::uniform_int_distribution<int> dist(0, 100); // 0到100的随机数
-            MSG::WrapperMessage wrapper_msg;
-            MSG::msg_people *people_msg;
-            MSG::msg_address *addr_msg;
-            const int randomNum = dist(mt);
-            if (randomNum % 2 == 0)
+            for (int i = 0; i < SEND_COUNT; i++)
             {
-                std::cout << "send address" << std::endl;
-                wrapper_msg.set_topic("address");
-                addr_msg = wrapper_msg.mutable_address();
-                addr_msg->set_city("abc");
-                addr_msg->set_street("567");
+                if (i % 2 == 0)
+                {
+                    addr_msg.set_city("abc");
+                    addr_msg.set_street("567");
+                    uint64_t count = addr_msg.count();
+                    //printf("address count %lu\n", count);
+                    addr_msg.set_count(count + 1);
+
+                    wrapper_msg.set_topic("address");
+                    *wrapper_msg.mutable_address() = addr_msg;
+                }
+                else
+                {
+                    people_msg.set_name("arno");
+                    people_msg.set_age(20);
+                    uint64_t count = people_msg.count();
+                    //printf("                          people count %lu\n", count);
+                    people_msg.set_count(count + 1);
+
+                    wrapper_msg.set_topic("people");
+                    *wrapper_msg.mutable_people() = people_msg;
+                }
+                Timestamp timestamp;
+                timestamp.set_seconds(time(NULL));
+                timestamp.set_nanos(0);
+                *wrapper_msg.mutable_timestamp() = timestamp;
+                protobus_send(handle, wrapper_msg);
             }
-            else
-            {
-                std::cout << "send people" << std::endl;
-                people_msg = new MSG::msg_people();
-                people_msg->set_name("arno");
-                people_msg->set_age(20);
-                wrapper_msg.set_topic("people");
-                wrapper_msg.set_allocated_people(people_msg);
-            }
-            Timestamp timestamp;
-            timestamp.set_seconds(time(NULL));
-            timestamp.set_nanos(0);
-            *wrapper_msg.mutable_timestamp() = timestamp;
-            protobus_send(handle, wrapper_msg);
+            break;
         }
+        else
+        {
+            sleep(1);
+        }
+    }
+    // 防止主线程退出导致子线程崩溃
+    while(1)
+    {
+        sleep(1);
     }
     protobus_cleanup(handle);
 

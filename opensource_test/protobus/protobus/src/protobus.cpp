@@ -11,10 +11,11 @@
 #include <unordered_map>
 #include <utility>
 #include <algorithm>
+#include <unistd.h>
 using namespace std;
 using google::protobuf::Timestamp;
 using google::protobuf::util::TimeUtil;
-#define TOPIC_MAP
+// #define TOPIC_MAP
 uint8_t sendBuf[65535];
 struct protobus_handle
 {
@@ -42,7 +43,6 @@ struct protobus_handle
     std::mutex queueMutex;
     std::condition_variable queueCond;
 };
-static void subscriber_init(protobus_handle_t *handle);
 static size_t send_msg(protobus_handle_t *handle, std::shared_ptr<MSG::WrapperMessage> msg)
 {
     std::unique_ptr<uint8_t[]> dataBuf;
@@ -63,7 +63,11 @@ static size_t send_msg(protobus_handle_t *handle, std::shared_ptr<MSG::WrapperMe
     try
     {
         zmq::message_t topic(msg->topic());
-        handle->pub->send(topic, zmq::send_flags::sndmore);
+        zmq::send_result_t ret = handle->pub->send(topic, zmq::send_flags::sndmore);
+        if (!ret || ret.value() == 0)
+        {
+            std::cout << "topic send failed" << std::endl;
+        }
     }
     catch (const std::exception &e)
     {
@@ -81,7 +85,11 @@ static size_t send_msg(protobus_handle_t *handle, std::shared_ptr<MSG::WrapperMe
         msg->SerializePartialToArray(bufPtr, sendSize);
         zmq::message_t zmq_msg(bufPtr, sendSize);
 
-        handle->pub->send(zmq_msg, zmq::send_flags::dontwait);
+        zmq::send_result_t ret = handle->pub->send(zmq_msg, zmq::send_flags::dontwait);
+        if (!ret || ret.value() == 0)
+        {
+            std::cout << "message send failed" << std::endl;
+        }
     }
     catch (const std::exception &e)
     {
@@ -98,6 +106,7 @@ static std::shared_ptr<MSG::WrapperMessage> get_msg(protobus_handle_t *handle)
     auto msgPtr = handle->msgQueue.front();
     handle->msgQueue.pop();
     lock.unlock();
+    handle->queueCond.notify_one(); // 通知等待的生产者线程
     return msgPtr;
 }
 static void sub_task(protobus_handle_t *handle)
@@ -167,9 +176,12 @@ static void sub_task(protobus_handle_t *handle)
 static void pub_task(protobus_handle_t *handle)
 {
     size_t sendSize = 0;
+    int snd_hwm = 1500;
     zmq::context_t ctx(1);
     handle->pub = new zmq::socket_t(ctx, zmq::socket_type::pub);
+    handle->pub->set(zmq::sockopt::sndhwm, 1500);
     handle->pub->connect(TCP_SUB);
+    
     while (handle->isRunning)
     {
         auto msgPtr = get_msg(handle);
@@ -182,6 +194,16 @@ static void pub_task(protobus_handle_t *handle)
             }
         }
     }
+}
+static void subscriber_init(protobus_handle_t *handle)
+{
+    int rcv_hwm = 1500;
+    handle->sub_ctx = new zmq::context_t(1);
+    handle->sub = new zmq::socket_t(*handle->sub_ctx, zmq::socket_type::sub);
+    handle->sub->set(zmq::sockopt::rcvhwm, rcv_hwm);
+    handle->sub->connect(TCP_PUB);
+    thread t(sub_task, handle);
+    t.detach();
 }
 protobus_handle_t *protobus_init(const char *node_name)
 {
@@ -229,17 +251,14 @@ void protobus_cleanup(protobus_handle_t *handle)
 }
 void protobus_send(protobus_handle_t *handle, const MSG::WrapperMessage &msg)
 {
-    std::lock_guard<std::mutex> lock(handle->queueMutex);
+    
+    std::unique_lock<std::mutex> lock(handle->queueMutex);
+    // Wait until the queue size is below the threshold
+    handle->queueCond.wait(lock, [&handle]
+                           { return handle->msgQueue.size() <= 1000; });
     handle->msgQueue.push(std::make_shared<MSG::WrapperMessage>(msg));
     handle->queueCond.notify_one();
-}
-static void subscriber_init(protobus_handle_t *handle)
-{
-    handle->sub_ctx = new zmq::context_t(1);
-    handle->sub = new zmq::socket_t(*handle->sub_ctx, zmq::socket_type::sub);
-    handle->sub->connect(TCP_PUB);
-    thread t(sub_task, handle);
-    t.detach();
+    //lock.unlock();
 }
 void protobus_add_subscriber(protobus_handle_t *handle, const char *topic, protobus_cb cb)
 {
