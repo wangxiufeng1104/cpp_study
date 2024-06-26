@@ -12,7 +12,7 @@
 #define TCP_SUB "tcp://127.0.0.1:5555"
 #define TCP_PUB "tcp://127.0.0.1:5556"
 using namespace std;
-//#define THREADSAFE_QUEUE
+// #define THREADSAFE_QUEUE
 #ifdef THREADSAFE_QUEUE
 template <typename T>
 class threadsafe_queue
@@ -22,6 +22,7 @@ private:
     std::queue<T> data_queue;
     std::condition_variable data_cond;
     std::atomic<bool> stop_flag = false;
+
 public:
     threadsafe_queue() {}
     threadsafe_queue(threadsafe_queue const &other)
@@ -39,7 +40,7 @@ public:
         data_cond.wait(lk, [this]
                        { return (data_queue.size() <= 1000 || stop_flag); });
         data_queue.push(std::move(new_value));
-        //lk.unlock();
+        // lk.unlock();
         data_cond.notify_one();
     }
     void wait_and_pop(T &value)
@@ -90,23 +91,46 @@ public:
 class protobus
 {
 public:
+    typedef enum
+    {
+        LOG_DEBUG,
+        LOG_INFO,
+        LOG_WARN,
+        LOG_ERROR,
+        LOG_HEX,
+        LOG_MAX
+    } protobus_log_level;
     typedef void (*protobus_cb)(const MSG::WrapperMessage &msg);
-    static protobus* get_instance(const char *node_name);
-    static protobus* get_instance(const char *node_name, std::vector<std::string> topics, protobus_cb cb);
-    
+    static protobus *get_instance(const char *node_name = nullptr);
+    static protobus *get_instance(const char *node_name, std::vector<std::string> topics, protobus_cb cb);
+
     protobus(protobus &other) = delete;
     void operator=(const protobus &) = delete;
     ~protobus();
-    void send(const MSG::WrapperMessage &msg);
+    void send(MSG::WrapperMessage &msg);
     void add_subscriber(const char *topic, protobus_cb cb);
     void del_subscriber(const char *topic);
+    int32_t console(protobus_log_level level, const char *func, int32_t lineNum, const char *format, ...);
+    inline void set_level(protobus_log_level level) { log_level = level; }
+    inline protobus_log_level get_level() { return log_level; }
 
 private:
-    static protobus * pinstance_;
-    static std::mutex mutex_;
+    size_t send_msg(std::shared_ptr<MSG::WrapperMessage> msg);
+    std::shared_ptr<MSG::WrapperMessage> get_msg();
+    void pub_task_function();
+    void sub_task_function();
+    std::string format_timestamp();
+    std::string format_log_level(protobus_log_level level);
     protobus(const char *node_name);
     protobus(const char *node_name, std::vector<std::string> topics, protobus_cb cb);
-     std::unique_ptr<uint8_t[]> send_buf;
+
+private:
+    /* log level */
+    protobus_log_level log_level;
+    /* for singleton */
+    static protobus *pinstance_;
+    static std::mutex mutex_;
+    std::unique_ptr<uint8_t[]> send_buf;
     /* pub socket */
     zmq::socket_t *pub_sock = nullptr;
     /* sub ctx */
@@ -133,9 +157,10 @@ private:
 #else
     threadsafe_queue<std::shared_ptr<MSG::WrapperMessage>> msg_queue;
 #endif
-    std::shared_ptr<MSG::WrapperMessage> get_msg();
-    size_t send_msg(std::shared_ptr<MSG::WrapperMessage> msg);
-    void pub_task_function();
-    void sub_task_function();
 };
+
+#define ELELOG_DBG(fmt, args...) protobus::get_instance()->console(protobus::LOG_DEBUG, __func__, __LINE__, fmt, ##args)
+#define ELELOG_INFO(fmt, args...) protobus::get_instance()->console(protobus::LOG_INFO, __func__, __LINE__, fmt, ##args)
+#define ELELOG_WARN(fmt, args...) protobus::get_instance()->console(protobus::LOG_DEBUG, __func__, __LINE__, fmt, ##args)
+#define ELELOG_ERROR(fmt, args...) protobus::get_instance()->console(protobus::LOG_DEBUG, __func__, __LINE__, fmt, ##args)
 #endif

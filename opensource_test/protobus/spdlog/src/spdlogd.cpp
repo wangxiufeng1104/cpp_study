@@ -24,7 +24,23 @@ void signal_hander(int sig)
     exit_flag = 0;
 }
 
-
+void protobus_callback(const MSG::WrapperMessage &msg)
+{
+    switch (msg.message_type_case())
+    {
+    case MSG::WrapperMessage::kLog:
+    {
+        std::string str = msg.log().log();
+        rotating_logger->debug(str);
+    }
+    break;
+    default:
+    {
+        std::cout << "unknow topic " << msg.topic() << ", msg.message_type_case() " << msg.message_type_case() << std::endl;
+    }
+    break;
+    }
+}
 int main(int argc, char *argv[])
 {
     // Create a file rotating logger with 5mb size max and 3 rotated files
@@ -38,8 +54,9 @@ int main(int argc, char *argv[])
     spdlog::set_default_logger(rotating_logger);
     spdlog::set_level(spdlog::level::debug);
     spdlog::set_pattern("%v");
-    protobus* bus = protobus::get_instance(basename(argv[0]));
-    
+    protobus *bus = protobus::get_instance(basename(argv[0]));
+    bus->add_subscriber("log", protobus_callback);
+
     while (exit_flag)
     {
         sleep(1);

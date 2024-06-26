@@ -102,23 +102,27 @@ void protobus_callback(const MSG::WrapperMessage &msg)
     case MSG::WrapperMessage::kPeople:
     {
         const MSG::msg_people &people_msg = msg.people();
-        std::cout << "[" << timestamp_to_string(time) << "] "
-                  << "Received message on topic " << msg.topic()
-                  << ": Name = " << people_msg.name()
-                  << ", Age = " << people_msg.age()
-                  << ", count = " << people_msg.count()
-                  << ", recv count = " << ++people_recv_count << std::endl;
+        std::ostringstream oss;
+        oss << "[" << timestamp_to_string(time) << "] "
+            << "Received message on topic " << msg.topic()
+            << ": Name = " << people_msg.name()
+            << ", Age = " << people_msg.age()
+            << ", count = " << people_msg.count()
+            << ", recv count = " << ++people_recv_count;
+        ELELOG_DBG("%s", oss.str().data());
     }
     break;
     case MSG::WrapperMessage::kAddress:
     {
         const MSG::msg_address &addr = msg.address();
-        std::cout << "[" << timestamp_to_string(time) << "] "
-                  << "Received message on topic " << msg.topic()
-                  << ": City = " << addr.city()
-                  << ", Street = " << addr.street()
-                  << ", count = " << addr.count()
-                  << ", recv count = " << ++address_recv_count << std::endl;
+        std::ostringstream oss;
+        oss << "[" << timestamp_to_string(time) << "] "
+            << "Received message on topic " << msg.topic()
+            << ": City = " << addr.city()
+            << ", Street = " << addr.street()
+            << ", count = " << addr.count()
+            << ", recv count = " << ++address_recv_count;
+        ELELOG_DBG("%s", oss.str().data());
     }
     break;
     default:

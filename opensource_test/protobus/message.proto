@@ -13,6 +13,9 @@ message msg_address
     string city = 2;
     uint64 count = 3;
 }
+message msg_log {
+    string log = 1;
+}
 
 message WrapperMessage {
     string topic = 1;
@@ -20,5 +23,6 @@ message WrapperMessage {
     oneof message_type {
         msg_people people = 3;
         msg_address address = 4;
+        msg_log log = 5;
     }
 }

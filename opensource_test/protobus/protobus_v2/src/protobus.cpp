@@ -7,12 +7,13 @@
 #include <utility>
 #include <algorithm>
 #include <unistd.h>
+#include <cstdarg>
 using namespace std;
 using google::protobuf::Timestamp;
 using google::protobuf::util::TimeUtil;
 protobus *protobus::pinstance_{nullptr};
 std::mutex protobus::mutex_;
-protobus::protobus(const char *node_name)
+protobus::protobus(const char *node_name) : log_level(protobus::LOG_DEBUG)
 {
     if (node_name != nullptr)
     {
@@ -70,13 +71,20 @@ protobus::~protobus()
     sub_ctx->shutdown();
 }
 
-void protobus::send(const MSG::WrapperMessage &msg)
+void protobus::send(MSG::WrapperMessage &msg)
 {
 #ifndef THREADSAFE_QUEUE
     std::unique_lock<std::mutex> lk(msg_mutex);
     // Wait until the queue size is below the threshold
     msg_cond.wait(lk, [this]
                   { return msg_queue.size() <= 1000; });
+    if(!msg.has_timestamp())
+    {
+        Timestamp timestamp;
+        timestamp.set_seconds(time(NULL));
+        timestamp.set_nanos(0);
+        *msg.mutable_timestamp() = timestamp;
+    }
     msg_queue.push(std::make_shared<MSG::WrapperMessage>(msg));
     msg_cond.notify_one();
 #else
@@ -131,6 +139,47 @@ void protobus::del_subscriber(const char *topic)
         std::cout << "topic '" << topic << "' not found in vector." << std::endl;
     }
     sub_sock->set(zmq::sockopt::unsubscribe, topic);
+}
+
+int32_t protobus::console(protobus_log_level level, const char *func, int32_t lineNum, const char *format, ...)
+{
+    if (level < log_level)
+        return 0;
+    if (NULL == format)
+        return -1;
+    va_list ap;
+    int32_t len = 0;
+    std::ostringstream log;
+    log << format_timestamp() << "[" << identify << "]" << format_log_level(level);
+
+    if (func)
+    {
+        log << "[" << func << "]";
+    }
+    if (lineNum > 0)
+    {
+        log << "[" << lineNum << "]";
+    }
+    char buf[65535] = {0};
+    va_start(ap, format);
+    std::vsnprintf(buf, size(buf), format, ap);
+    va_end(ap);
+
+    log << buf;
+    std::string log_str = log.str();
+    if (!log_str.empty() && log_str.back() == '\n')
+    {
+        log_str.pop_back();
+    }
+    std::cout << log_str << std::endl;
+    fflush(stdout);
+
+    MSG::WrapperMessage wrapper_msg;
+    wrapper_msg.set_topic("log");
+    MSG::msg_log *m_log = wrapper_msg.mutable_log();
+    m_log->set_log(log_str);
+    this->send(wrapper_msg);
+    return 0;
 }
 
 std::shared_ptr<MSG::WrapperMessage> protobus::get_msg()
@@ -269,5 +318,36 @@ void protobus::sub_task_function()
         {
             continue;
         }
+    }
+}
+
+std::string protobus::format_timestamp()
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+
+    struct tm *ptm = localtime(&tv.tv_sec);
+    char timestamp[64];
+    std::strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", ptm);
+    std::ostringstream oss;
+    oss << "[" << timestamp << "." << tv.tv_usec % 1000000 << "]";
+
+    return oss.str();
+}
+
+std::string protobus::format_log_level(protobus_log_level level)
+{
+    switch (level)
+    {
+    case LOG_DEBUG:
+        return "[DEBUG]";
+    case LOG_INFO:
+        return "[INFO]";
+    case LOG_WARN:
+        return "[WARN]";
+    case LOG_ERROR:
+        return "[ERROR]";
+    default:
+        return "[UNKNOWN]";
     }
 }
