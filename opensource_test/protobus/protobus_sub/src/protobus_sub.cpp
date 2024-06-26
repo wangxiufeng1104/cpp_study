@@ -14,7 +14,6 @@ using namespace std;
 using namespace std::chrono_literals;
 using google::protobuf::Timestamp;
 using google::protobuf::util::TimeUtil;
-protobus_handle_t *handle = nullptr;
 std::vector<std::string> topics;
 int run_status = 1;
 std::string timestamp_to_string(uint64_t timestamp)
