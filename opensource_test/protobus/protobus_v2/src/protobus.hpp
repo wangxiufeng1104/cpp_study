@@ -86,18 +86,26 @@ public:
     }
 };
 #endif
+
 class protobus
 {
 public:
     typedef void (*protobus_cb)(const MSG::WrapperMessage &msg);
-    protobus(const char *node_name);
-    protobus(const char *node_name, std::vector<std::string> topics, protobus_cb cb);
+    static protobus* get_instance(const char *node_name);
+    static protobus* get_instance(const char *node_name, std::vector<std::string> topics, protobus_cb cb);
+    
+    protobus(protobus &other) = delete;
+    void operator=(const protobus &) = delete;
     ~protobus();
     void send(const MSG::WrapperMessage &msg);
     void add_subscriber(const char *topic, protobus_cb cb);
     void del_subscriber(const char *topic);
 
 private:
+    static protobus * pinstance_;
+    static std::mutex mutex_;
+    protobus(const char *node_name);
+    protobus(const char *node_name, std::vector<std::string> topics, protobus_cb cb);
      std::unique_ptr<uint8_t[]> send_buf;
     /* pub socket */
     zmq::socket_t *pub_sock = nullptr;

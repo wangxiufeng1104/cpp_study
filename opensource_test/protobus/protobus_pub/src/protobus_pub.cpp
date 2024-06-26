@@ -47,7 +47,7 @@ int main(int argc, char **argv)
 {
     // signal(SIGTERM, sig_handle);
     // signal(SIGINT, sig_handle);
-    protobus bus(basename(argv[0]));
+    protobus *bus = protobus::get_instance(basename(argv[0]));
     sleep(1);
     while (1)
     {
@@ -77,8 +77,9 @@ int main(int argc, char **argv)
             timestamp.set_seconds(time(NULL));
             timestamp.set_nanos(0);
             *wrapper_msg.mutable_timestamp() = timestamp;
-            bus.send(wrapper_msg);
+            bus->send(wrapper_msg);
             loop_count++;
+            usleep(10);
         }
         else
         {

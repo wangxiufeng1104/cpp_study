@@ -10,6 +10,8 @@
 using namespace std;
 using google::protobuf::Timestamp;
 using google::protobuf::util::TimeUtil;
+protobus *protobus::pinstance_{nullptr};
+std::mutex protobus::mutex_;
 protobus::protobus(const char *node_name)
 {
     if (node_name != nullptr)
@@ -39,6 +41,25 @@ protobus::protobus(const char *node_name, std::vector<std::string> topics, proto
     }
 }
 
+protobus *protobus::get_instance(const char *node_name)
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (pinstance_ == nullptr)
+    {
+        pinstance_ = new protobus(node_name);
+    }
+    return pinstance_;
+}
+
+protobus *protobus::get_instance(const char *node_name, std::vector<std::string> topics, protobus_cb cb)
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (pinstance_ == nullptr)
+    {
+        pinstance_ = new protobus(node_name, topics, cb);
+    }
+    return pinstance_;
+}
 protobus::~protobus()
 {
     std::cout << "exit" << std::endl;
@@ -55,7 +76,7 @@ void protobus::send(const MSG::WrapperMessage &msg)
     std::unique_lock<std::mutex> lk(msg_mutex);
     // Wait until the queue size is below the threshold
     msg_cond.wait(lk, [this]
-                           { return msg_queue.size() <= 1000; });
+                  { return msg_queue.size() <= 1000; });
     msg_queue.push(std::make_shared<MSG::WrapperMessage>(msg));
     msg_cond.notify_one();
 #else
@@ -117,7 +138,7 @@ std::shared_ptr<MSG::WrapperMessage> protobus::get_msg()
 #ifndef THREADSAFE_QUEUE
     std::unique_lock<mutex> lk(msg_mutex);
     msg_cond.wait(lk, [this]
-                           { return !msg_queue.empty(); });
+                  { return !msg_queue.empty(); });
     auto msgPtr = msg_queue.front();
     msg_queue.pop();
     lk.unlock();

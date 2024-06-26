@@ -155,8 +155,8 @@ int main(int argc, char **argv)
         std::cout << str << argv[i] << std::endl;
         topics.push_back(argv[i]);
     }
-    protobus bus(basename(argv[0]), topics, protobus_callback);
-    while(run_status)
+    protobus *bus = protobus::get_instance(basename(argv[0]), topics, protobus_callback);
+    while (run_status)
     {
         sleep(1);
     }
