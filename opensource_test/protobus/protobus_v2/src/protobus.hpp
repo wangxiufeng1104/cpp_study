@@ -131,14 +131,12 @@ private:
     static protobus *pinstance_;
     static std::mutex mutex_;
     std::unique_ptr<uint8_t[]> send_buf;
+    /* zmq context */
+    zmq::context_t *context = nullptr;
     /* pub socket */
     zmq::socket_t *pub_sock = nullptr;
-    /* sub ctx */
-    zmq::context_t *pub_ctx = nullptr;
     /* sub socket */
     zmq::socket_t *sub_sock = nullptr;
-    /* sub ctx */
-    zmq::context_t *sub_ctx = nullptr;
     /* sender identify*/
     string identify;
     std::thread pub_task;

@@ -23,8 +23,8 @@ protobus::protobus(const char *node_name) : log_level(protobus::LOG_DEBUG)
 
     send_buf = std::make_unique<uint8_t[]>(65535);
 
-    sub_ctx = new zmq::context_t(1);
-    sub_sock = new zmq::socket_t(*sub_ctx, zmq::socket_type::sub);
+    context = new zmq::context_t(1);
+    sub_sock = new zmq::socket_t(*context, zmq::socket_type::sub);
     sub_sock->set(zmq::sockopt::rcvhwm, 1500);
     sub_sock->connect(TCP_PUB);
 
@@ -67,8 +67,9 @@ protobus::~protobus()
 
     run_status = false;
 
-    pub_ctx->shutdown();
-    sub_ctx->shutdown();
+    pub_sock->close();
+    sub_sock->close();
+    context->shutdown();
 }
 
 void protobus::send(MSG::WrapperMessage &msg)
@@ -78,7 +79,7 @@ void protobus::send(MSG::WrapperMessage &msg)
     // Wait until the queue size is below the threshold
     msg_cond.wait(lk, [this]
                   { return msg_queue.size() <= 1000; });
-    if(!msg.has_timestamp())
+    if (!msg.has_timestamp())
     {
         Timestamp timestamp;
         timestamp.set_seconds(time(NULL));
@@ -257,8 +258,7 @@ size_t protobus::send_msg(std::shared_ptr<MSG::WrapperMessage> msg)
 void protobus::pub_task_function()
 {
     size_t sendSize = 0;
-    pub_ctx = new zmq::context_t(1);
-    pub_sock = new zmq::socket_t(*pub_ctx, zmq::socket_type::pub);
+    pub_sock = new zmq::socket_t(*this->context, zmq::socket_type::pub);
     pub_sock->set(zmq::sockopt::sndhwm, 1500);
     pub_sock->connect(TCP_SUB);
     while (run_status)
