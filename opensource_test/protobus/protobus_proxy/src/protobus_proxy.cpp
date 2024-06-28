@@ -5,7 +5,7 @@
 #include <signal.h>
 #define TCP_SUB "tcp://127.0.0.1:5555"
 #define TCP_PUB "tcp://127.0.0.1:5556"
-zmq::context_t context(1);
+zmq::context_t context(2);
 #ifdef MONITOR_ENABLE
 class MyMonitor : public zmq::monitor_t
 {

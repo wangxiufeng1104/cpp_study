@@ -23,20 +23,32 @@ int sleep_flag = 0;
 int loop_count = 0;
 uint64_t people_count = 0;
 uint64_t address_count = 0;
+void print_with_timestamp(const char *label, size_t count)
+{
+    auto now = std::chrono::system_clock::now();
+    std::time_t now_time = std::chrono::system_clock::to_time_t(now);
+    std::tm *local_time = std::localtime(&now_time);
+
+    // Print timestamp and count
+    printf("[%02d-%02d-%02d %02d:%02d:%02d] %s %lu\n",
+           local_time->tm_year + 1900, local_time->tm_mon + 1, local_time->tm_mday,
+           local_time->tm_hour, local_time->tm_min, local_time->tm_sec,
+           label, count);
+}
+
 void sig_handle(int sig_num)
 {
     switch (sig_num)
     {
-    case SIGTERM:
-    case SIGINT:
+    case SIGUSR1:
     {
-        sleep_flag = !sleep_flag;
-        if (sleep_flag)
-        {
-            printf("people_count %lu\n", people_count);
-            printf("address_count %lu\n", address_count);
-            fflush(stdout);
-        }
+        // sleep_flag = !sleep_flag;
+        // if (sleep_flag)
+        // {
+        print_with_timestamp("people_count", people_count);
+        print_with_timestamp("address_count", address_count);
+        fflush(stdout);
+        // }
     }
     break;
     default:
@@ -47,6 +59,7 @@ int main(int argc, char **argv)
 {
     // signal(SIGTERM, sig_handle);
     // signal(SIGINT, sig_handle);
+    signal(SIGUSR1, sig_handle);
     std::shared_ptr bus = protobus::get_instance(basename(argv[0]));
     sleep(1);
     while (1)
@@ -79,7 +92,7 @@ int main(int argc, char **argv)
             *wrapper_msg.mutable_timestamp() = timestamp;
             bus->send(wrapper_msg);
             loop_count++;
-            usleep(10);
+            // usleep(10);
         }
         else
         {

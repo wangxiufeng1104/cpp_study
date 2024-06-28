@@ -23,7 +23,7 @@ protobus::protobus(const char *node_name) : log_level(protobus::LOG_DEBUG)
 
     send_buf = std::make_unique<uint8_t[]>(65535);
 
-    context = new zmq::context_t(1);
+    context = new zmq::context_t(2);
     sub_sock = new zmq::socket_t(*context, zmq::socket_type::sub);
     sub_sock->set(zmq::sockopt::rcvhwm, 1500);
     sub_sock->connect(TCP_PUB);
