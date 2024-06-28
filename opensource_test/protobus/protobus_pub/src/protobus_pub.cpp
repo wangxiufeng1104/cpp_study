@@ -47,7 +47,7 @@ int main(int argc, char **argv)
 {
     // signal(SIGTERM, sig_handle);
     // signal(SIGINT, sig_handle);
-    protobus *bus = protobus::get_instance(basename(argv[0]));
+    std::shared_ptr bus = protobus::get_instance(basename(argv[0]));
     sleep(1);
     while (1)
     {

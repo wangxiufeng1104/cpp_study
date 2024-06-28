@@ -101,8 +101,8 @@ public:
         LOG_MAX
     } protobus_log_level;
     typedef void (*protobus_cb)(const MSG::WrapperMessage &msg);
-    static protobus *get_instance(const char *node_name = nullptr);
-    static protobus *get_instance(const char *node_name, std::vector<std::string> topics, protobus_cb cb);
+    static std::shared_ptr<protobus> get_instance(const char *node_name = nullptr);
+    static std::shared_ptr<protobus> get_instance(const char *node_name, std::vector<std::string> topics, protobus_cb cb);
 
     protobus(protobus &other) = delete;
     void operator=(const protobus &) = delete;
@@ -128,7 +128,7 @@ private:
     /* log level */
     protobus_log_level log_level;
     /* for singleton */
-    static protobus *pinstance_;
+    static std::shared_ptr<protobus> pinstance_;
     static std::mutex mutex_;
     std::unique_ptr<uint8_t[]> send_buf;
     /* zmq context */

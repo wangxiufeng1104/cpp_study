@@ -11,7 +11,7 @@
 using namespace std;
 using google::protobuf::Timestamp;
 using google::protobuf::util::TimeUtil;
-protobus *protobus::pinstance_{nullptr};
+std::shared_ptr<protobus> protobus::pinstance_{nullptr};
 std::mutex protobus::mutex_;
 protobus::protobus(const char *node_name) : log_level(protobus::LOG_DEBUG)
 {
@@ -27,11 +27,11 @@ protobus::protobus(const char *node_name) : log_level(protobus::LOG_DEBUG)
     sub_sock = new zmq::socket_t(*context, zmq::socket_type::sub);
     sub_sock->set(zmq::sockopt::rcvhwm, 1500);
     sub_sock->connect(TCP_PUB);
-
+    pub_sock = new zmq::socket_t(*context, zmq::socket_type::pub);
+    pub_sock->set(zmq::sockopt::sndhwm, 1500);
+    pub_sock->connect(TCP_SUB);
     pub_task = std::thread(&protobus::pub_task_function, this);
-    pub_task.detach();
     sub_task = std::thread(&protobus::sub_task_function, this);
-    sub_task.detach();
 }
 
 protobus::protobus(const char *node_name, std::vector<std::string> topics, protobus_cb cb) : protobus(node_name)
@@ -42,34 +42,42 @@ protobus::protobus(const char *node_name, std::vector<std::string> topics, proto
     }
 }
 
-protobus *protobus::get_instance(const char *node_name)
+std::shared_ptr<protobus> protobus::get_instance(const char *node_name)
 {
     std::lock_guard<std::mutex> lock(mutex_);
     if (pinstance_ == nullptr)
     {
-        pinstance_ = new protobus(node_name);
+        pinstance_ = std::shared_ptr<protobus>(new protobus(node_name));
     }
     return pinstance_;
 }
 
-protobus *protobus::get_instance(const char *node_name, std::vector<std::string> topics, protobus_cb cb)
+std::shared_ptr<protobus> protobus::get_instance(const char *node_name, std::vector<std::string> topics, protobus_cb cb)
 {
     std::lock_guard<std::mutex> lock(mutex_);
     if (pinstance_ == nullptr)
     {
-        pinstance_ = new protobus(node_name, topics, cb);
+        pinstance_ = std::shared_ptr<protobus>(new protobus(node_name, topics, cb));
     }
     return pinstance_;
 }
 protobus::~protobus()
 {
-    std::cout << "exit" << std::endl;
-
     run_status = false;
 
     pub_sock->close();
     sub_sock->close();
     context->shutdown();
+
+    if (sub_task.joinable())
+    {
+        sub_task.join();
+    }
+    if (pub_task.joinable())
+    {
+        pub_task.join();
+    }
+    std::cout << "exit" << std::endl;
 }
 
 void protobus::send(MSG::WrapperMessage &msg)
@@ -187,8 +195,13 @@ std::shared_ptr<MSG::WrapperMessage> protobus::get_msg()
 {
 #ifndef THREADSAFE_QUEUE
     std::unique_lock<mutex> lk(msg_mutex);
-    msg_cond.wait(lk, [this]
-                  { return !msg_queue.empty(); });
+    if (!msg_cond.wait_for(lk, std::chrono::milliseconds(500), [this]
+                           { return (!msg_queue.empty() || !run_status); }))
+    {
+        return nullptr;
+    }
+    if (!run_status)
+        return nullptr;
     auto msgPtr = msg_queue.front();
     msg_queue.pop();
     lk.unlock();
@@ -258,9 +271,7 @@ size_t protobus::send_msg(std::shared_ptr<MSG::WrapperMessage> msg)
 void protobus::pub_task_function()
 {
     size_t sendSize = 0;
-    pub_sock = new zmq::socket_t(*this->context, zmq::socket_type::pub);
-    pub_sock->set(zmq::sockopt::sndhwm, 1500);
-    pub_sock->connect(TCP_SUB);
+
     while (run_status)
     {
         auto msgPtr = get_msg();
@@ -271,10 +282,6 @@ void protobus::pub_task_function()
             {
                 std::cerr << "send msg failed ,ret %d" << sendSize << std::endl;
             }
-        }
-        else
-        {
-            printf("get nullptr\n");
         }
     }
 }
@@ -288,35 +295,41 @@ void protobus::sub_task_function()
         lk.unlock();
         zmq::message_t zmq_topic;
         zmq::message_t zmq_msg;
-
-        zmq::recv_result_t result = sub_sock->recv(zmq_topic);
-        if (result.has_value())
+        try
         {
-
-            std::string topic(static_cast<char *>(zmq_topic.data()), zmq_topic.size());
-            std::vector<std::pair<std::string, protobus_cb>>::iterator it;
-            for (it = topic_vec.begin(); it != topic_vec.end(); ++it)
+            zmq::recv_result_t result = sub_sock->recv(zmq_topic);
+            if (result.has_value())
             {
 
-                if (topic.find(it->first) != std::string::npos)
+                std::string topic(static_cast<char *>(zmq_topic.data()), zmq_topic.size());
+                std::vector<std::pair<std::string, protobus_cb>>::iterator it;
+                for (it = topic_vec.begin(); it != topic_vec.end(); ++it)
                 {
-                    break;
+
+                    if (topic.find(it->first) != std::string::npos)
+                    {
+                        break;
+                    }
+                }
+                if (it != topic_vec.end())
+                {
+                    result = sub_sock->recv(zmq_msg, zmq::recv_flags::none);
+                    if (result.has_value())
+                    {
+                        MSG::WrapperMessage wrapper_msg;
+                        wrapper_msg.ParseFromArray(zmq_msg.data(), zmq_msg.size());
+                        it->second(wrapper_msg);
+                    }
                 }
             }
-            if (it != topic_vec.end())
+            else
             {
-                result = sub_sock->recv(zmq_msg, zmq::recv_flags::none);
-                if (result.has_value())
-                {
-                    MSG::WrapperMessage wrapper_msg;
-                    wrapper_msg.ParseFromArray(zmq_msg.data(), zmq_msg.size());
-                    it->second(wrapper_msg);
-                }
+                continue;
             }
         }
-        else
+        catch (const std::exception &e)
         {
-            continue;
+            std::cerr << e.what() << '\n';
         }
     }
 }

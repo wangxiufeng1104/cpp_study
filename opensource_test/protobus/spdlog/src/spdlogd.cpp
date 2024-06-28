@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
     spdlog::set_default_logger(rotating_logger);
     spdlog::set_level(spdlog::level::debug);
     spdlog::set_pattern("%v");
-    protobus *bus = protobus::get_instance(basename(argv[0]));
+    std::shared_ptr bus = protobus::get_instance(basename(argv[0]));
     bus->add_subscriber("log", protobus_callback);
 
     while (exit_flag)
