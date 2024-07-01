@@ -1,2 +1,4 @@
 build/*
 *Zone.Identifier
+cmake_practice/CMakePrintHelpers/build/*
+cmake_practice/CMakePrintSystemInformation/build/*
