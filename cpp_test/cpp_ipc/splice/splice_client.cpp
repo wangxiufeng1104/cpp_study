@@ -13,7 +13,7 @@ int main()
 {
     int sock = 0;
     struct sockaddr_in serv_addr;
-    char *hello = "Hello server";
+    const char *hello = "Hello server";
     char buffer[1024] = {0};
 
     // 创建 socket
