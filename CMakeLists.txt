@@ -2,7 +2,18 @@ cmake_minimum_required(VERSION 3.16)
 project(cpp_study)
 include(cmake/util.cmake)
 include(cmake/protobuf_helpers.cmake)
+include(FetchContent)
 
+# FetchContent_Declare(mbedtls
+#         GIT_REPOSITORY https://github.com/Mbed-TLS/mbedtls.git
+#         GIT_TAG v3.6.2)
+
+FetchContent_Declare(mbedtls
+        URL https://github.com/Mbed-TLS/mbedtls/archive/refs/tags/v2.7.16.zip)
+# 设置选项以禁用测试和示例代码
+set(ENABLE_TESTING OFF CACHE BOOL "Disable building testing code")
+set(ENABLE_PROGRAMS OFF CACHE BOOL "Disable building example code")
+FetchContent_MakeAvailable(mbedtls)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_OUTPUT_EXTENSION_REPLACE 1)
 set(CMAKE_CXX_OUTPUT_EXTENSION_REPLACE 1)
