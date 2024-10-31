@@ -77,6 +77,9 @@
         "span": "cpp",
         "config.h": "c",
         "padlock.h": "c",
-        "aes.h": "c"
+        "aes.h": "c",
+        "ssl.h": "c",
+        "ctr_drbg.h": "c",
+        "sha256.h": "c"
     }
 }
