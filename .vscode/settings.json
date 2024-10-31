@@ -74,6 +74,9 @@
         "iomanip": "cpp",
         "shared_mutex": "cpp",
         "charconv": "cpp",
-        "span": "cpp"
+        "span": "cpp",
+        "config.h": "c",
+        "padlock.h": "c",
+        "aes.h": "c"
     }
 }

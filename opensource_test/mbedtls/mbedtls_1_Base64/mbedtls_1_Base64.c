@@ -27,7 +27,7 @@ int main(void)
     dump_buf("\n  base64 message: ", msg, len);
 
     mbedtls_base64_encode(rst, sizeof(rst), &len, msg, len);
-    mbedtls_printf("  base64 encode : %s len %d\n", rst, len);
+    mbedtls_printf("  base64 encode : %s len %ld\n", rst, len);
 
     mbedtls_base64_decode(rst, sizeof(rst), &len, rst, len);
     dump_buf("  base64 decode : ", rst, len);
