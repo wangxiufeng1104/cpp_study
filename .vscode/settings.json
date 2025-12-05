@@ -80,6 +80,7 @@
         "aes.h": "c",
         "ssl.h": "c",
         "ctr_drbg.h": "c",
-        "sha256.h": "c"
+        "sha256.h": "c",
+        "version.h": "c"
     }
 }

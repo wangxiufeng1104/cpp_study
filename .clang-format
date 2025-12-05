@@ -1,0 +1,65 @@
+BasedOnStyle: LLVM
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+AccessModifierOffset: -4
+IndentCaseLabels: true
+
+BreakBeforeBraces: Custom
+
+BraceWrapping:
+  AfterControlStatement: false
+  AfterFunction: false
+  AfterClass: false
+  AfterNamespace: true
+  BeforeElse: false
+
+AlignAfterOpenBracket: DontAlign
+AlignOperands: false
+AlignTrailingComments: true
+
+# 关键修改：改为 Left 使引用和指针符号贴近类型
+PointerAlignment: Left
+ReferenceAlignment: Left
+
+ColumnLimit: 120
+BreakStringLiterals: false
+BinPackParameters: true
+BinPackArguments: true
+BreakBeforeBinaryOperators: NonAssignment
+BreakBeforeTernaryOperators: true
+
+ConstructorInitializerIndentWidth: 0
+BreakConstructorInitializers: BeforeColon
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+AllowAllConstructorInitializersOnNextLine: false
+
+SpaceBeforeParens: ControlStatements
+KeepEmptyLinesAtTheStartOfBlocks: false
+
+AllowShortIfStatementsOnASingleLine: Always
+AllowShortLoopsOnASingleLine: true
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortBlocksOnASingleLine: true
+AllowShortFunctionsOnASingleLine: All
+
+AlignEscapedNewlines: Left
+AlwaysBreakBeforeMultilineStrings: false
+AlignConsecutiveMacros: true
+
+AlwaysBreakAfterReturnType: None
+AlwaysBreakAfterDefinitionReturnType: None
+SpaceBeforeCtorInitializerColon: true
+SpaceAfterControlStatementKeyword: true
+SpaceBeforeParens: ControlStatements
+SpaceInEmptyParentheses: false
+SpacesInParentheses: false
+SpacesInAngles: false
+SpaceBeforeSquareBrackets: false
+
+# 枚举格式化设置
+AllowShortEnumsOnASingleLine: false
+BitFieldColonSpacing: Both
+BreakBeforeBinaryOperators: NonAssignment
+BreakBeforeTernaryOperators: true
