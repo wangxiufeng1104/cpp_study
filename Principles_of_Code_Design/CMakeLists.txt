@@ -1,0 +1,14 @@
+cmake_minimum_required(VERSION 3.16)
+
+# 添加common库
+add_subdirectory(common)
+
+# 添加各个设计原则的演示
+add_subdirectory(1_Single_Responsibility_PRinciple)
+
+# add_subdirectory(2_Open_Closed_Principle)
+# add_subdirectory(3_Liskov_Substitution_Principle)
+# add_subdirectory(4_Interface_Segregation_Principle)
+# add_subdirectory(5_Dependency_Inversion_Principle)
+# add_subdirectory(6_Law_of_Demeter)
+# add_subdirectory(7_Composite_Reuse_Principle)
