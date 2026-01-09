@@ -1,9 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 project(cpp_study)
-
 include(cmake/util.cmake)
+include(cmake/demo_executable.cmake)
 include(cmake/protobuf_helpers.cmake)
-include(cmake/mbedtls_2_7.cmake)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_OUTPUT_EXTENSION_REPLACE 1)
 set(CMAKE_CXX_OUTPUT_EXTENSION_REPLACE 1)

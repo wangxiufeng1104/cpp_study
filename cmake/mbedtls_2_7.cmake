@@ -6,7 +6,7 @@ include(FetchContent)
 
 fetchcontent_declare(mbedtls
         URL https://github.com/Mbed-TLS/mbedtls/archive/refs/tags/v2.7.16.zip
-        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ext/mbedtls # 指定库下载地址
+        SOURCE_DIR ${CMAKE_SOURCE_DIR}/ext/mbedtls # 指定库下载地址
         )
 # 设置选项以禁用测试和示例代码
 set(ENABLE_TESTING OFF CACHE BOOL "Disable building testing code")

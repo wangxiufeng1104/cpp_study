@@ -1,3 +1,4 @@
+include(${CMAKE_SOURCE_DIR}/cmake/mbedtls_2_7.cmake)
 SUBDIRLIST(SUBDIRS ${CMAKE_CURRENT_SOURCE_DIR})
 foreach(child ${SUBDIRS})
     add_subdirectory(${child})
