@@ -1,0 +1,1 @@
+add_demo_executable_manual(NAME json_parser_demo)
