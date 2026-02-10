@@ -5,6 +5,7 @@
 #include <vector>
 #include <map>
 #include <functional>
+#include <sys/socket.h>
 
 /**
  * @brief 网络接口状态枚举
@@ -118,6 +119,10 @@ private:
     std::map<std::string, NetworkInterface> interfaces_;
     InterfaceCallback state_callback_;
     bool initialized_;
+    
+    // Netlink socket 句柄
+    int nl_sock_;
+    bool nl_initialized_;
 
     /**
      * @brief 读取网络接口信息（模拟实现）
@@ -128,6 +133,32 @@ private:
      * @brief 执行网络命令（模拟实现）
      */
     bool executeCommand(const std::string& command);
+
+    /**
+     * @brief 初始化 netlink socket
+     * @return 成功返回true，失败返回false
+     */
+    bool initNetlink();
+
+    /**
+     * @brief 关闭 netlink socket
+     */
+    void cleanupNetlink();
+
+    /**
+     * @brief 通过 netlink 发送消息并接收响应
+     * @param buf 消息缓冲区
+     * @param len 消息长度
+     * @return 成功返回true，失败返回false
+     */
+    bool sendNetlinkMessage(void* buf, size_t len);
+
+    /**
+     * @brief 根据接口名称获取接口索引
+     * @param name 接口名称
+     * @return 接口索引，失败返回-1
+     */
+    int getInterfaceIndex(const std::string& name);
 };
 
 #endif // NETWORK_INTERFACE_MANAGER_H
