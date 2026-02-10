@@ -3,6 +3,15 @@
 #include <sstream>
 #include <ctime>
 #include <algorithm>
+#include <cstring>
+#include <cerrno>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 NetworkMonitor::NetworkMonitor()
     : initialized_(false), running_(false), monitoring_interval_(5) {
@@ -110,18 +119,93 @@ bool NetworkMonitor::refreshStatus() {
 }
 
 bool NetworkMonitor::checkConnectivity(const std::string& host) {
-    std::ostringstream cmd;
-    cmd << "ping -c 1 -W 2 " << host << " > /dev/null 2>&1";
-
     std::cout << "[NetworkMonitor] Checking connectivity to " << host << std::endl;
 
-    // 模拟执行
-    bool success = true;  // 模拟成功
+    // 解析主机地址
+    struct addrinfo hints, *result, *rp;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;    // 支持 IPv4 和 IPv6
+    hints.ai_socktype = SOCK_STREAM; // TCP
+
+    int ret = getaddrinfo(host.c_str(), "80", &hints, &result);
+    if (ret != 0) {
+        std::cerr << "[NetworkMonitor] getaddrinfo failed: " << gai_strerror(ret) << std::endl;
+        return false;
+    }
+
+    bool connected = false;
+    double time_ms = 0.0;
     
-    std::cout << "[NetworkMonitor] Connectivity check: " 
-              << (success ? "SUCCESS" : "FAILED") << std::endl;
+    // 遍历所有返回的地址
+    for (rp = result; rp != nullptr; rp = rp->ai_next) {
+        int sockfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+        if (sockfd == -1) {
+            continue;
+        }
+
+        // 设置非阻塞模式以实现超时
+        int flags = fcntl(sockfd, F_GETFL, 0);
+        fcntl(sockfd, F_SETFL, flags | O_NONBLOCK);
+
+        // 记录开始时间
+        struct timespec start, end;
+        clock_gettime(CLOCK_MONOTONIC, &start);
+
+        // 尝试连接
+        ret = connect(sockfd, rp->ai_addr, rp->ai_addrlen);
+        
+        if (ret == -1) {
+            if (errno == EINPROGRESS) {
+                // 连接正在进行中，等待结果
+                fd_set writefds;
+                FD_ZERO(&writefds);
+                FD_SET(sockfd, &writefds);
+                
+                struct timeval timeout;
+                timeout.tv_sec = 3;  // 3秒超时
+                timeout.tv_usec = 0;
+                
+                ret = select(sockfd + 1, nullptr, &writefds, nullptr, &timeout);
+                
+                if (ret > 0) {
+                    // 检查连接是否成功
+                    int error = 0;
+                    socklen_t len = sizeof(error);
+                    if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &error, &len) == 0 && error == 0) {
+                        connected = true;
+                        
+                        // 计算连接时间
+                        clock_gettime(CLOCK_MONOTONIC, &end);
+                        time_ms = (end.tv_sec - start.tv_sec) * 1000.0 +
+                                  (end.tv_nsec - start.tv_nsec) / 1000000.0;
+                    }
+                }
+            }
+        } else {
+            // 立即连接成功
+            connected = true;
+            clock_gettime(CLOCK_MONOTONIC, &end);
+            time_ms = (end.tv_sec - start.tv_sec) * 1000.0 +
+                      (end.tv_nsec - start.tv_nsec) / 1000000.0;
+        }
+
+        close(sockfd);
+        
+        if (connected) {
+            break;
+        }
+    }
+
+    freeaddrinfo(result);
     
-    return success;
+    std::cout << "[NetworkMonitor] Connectivity check to " << host << ": "
+              << (connected ? "SUCCESS" : "FAILED") << std::endl;
+    
+    if (connected) {
+        std::cout << "[NetworkMonitor] Connection time: " << time_ms << " ms" << std::endl;
+    }
+    
+    return connected;
 }
 
 int NetworkMonitor::getSignalStrength(const std::string& interface) {
