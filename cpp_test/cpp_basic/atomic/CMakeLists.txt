@@ -1,7 +1,2 @@
-string(REGEX REPLACE "/$" "" CURRENT_FOLDER_ABSOLUTE ${CMAKE_CURRENT_SOURCE_DIR})
-string(REGEX REPLACE ".*/(.*)" "\\1" CURRENT_FOLDER ${CURRENT_FOLDER_ABSOLUTE})
-set (APP ${CURRENT_FOLDER})
-aux_source_directory (${CMAKE_CURRENT_SOURCE_DIR} SRC)
-add_executable(${APP} ${SRC})
-target_link_libraries(${APP} pthread)
-install(TARGETS ${APP} DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+add_demo_executable_auto(LINK_LIBS pthread)
+

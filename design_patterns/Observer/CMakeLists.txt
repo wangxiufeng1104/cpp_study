@@ -1,5 +1,1 @@
-string(REGEX REPLACE "/$" "" CURRENT_FOLDER_ABSOLUTE ${CMAKE_CURRENT_SOURCE_DIR})
-string(REGEX REPLACE ".*/(.*)" "\\1" CURRENT_FOLDER ${CURRENT_FOLDER_ABSOLUTE})
-set (APP ${CURRENT_FOLDER})
-aux_source_directory (${CMAKE_CURRENT_SOURCE_DIR} SRC)
-add_executable(${APP} ${SRC})
+add_demo_executable_auto()
