@@ -1,1 +1,1 @@
-add_demo_executable_auto(LINK_LIBS zmq)
+add_demo_executable_auto(LINK_LIBS shared_zmq)
