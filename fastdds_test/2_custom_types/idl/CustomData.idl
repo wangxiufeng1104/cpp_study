@@ -1,0 +1,50 @@
+// CustomData.idl - 自定义复杂数据类型定义
+
+module CustomData
+{
+    // 枚举类型
+    enum Status
+    {
+        STATUS_UNKNOWN,
+        STATUS_INITIALIZING,
+        STATUS_RUNNING,
+        STATUS_PAUSED,
+        STATUS_STOPPED,
+        STATUS_ERROR
+    };
+
+    // 嵌套结构体
+    struct Position
+    {
+        double x;
+        double y;
+        double z;
+    };
+
+    struct Velocity
+    {
+        double vx;
+        double vy;
+        double vz;
+    };
+
+    struct SensorData
+    {
+        double temperature;
+        double humidity;
+        double pressure;
+    };
+
+    // 主消息结构
+    struct DeviceMessage
+    {
+        unsigned long id;
+        string device_name;
+        Status status;
+        Position position;
+        Velocity velocity;
+        SensorData sensor;
+        sequence<long, 100> data_array;  // 最大100个元素
+        unsigned long long timestamp;
+    };
+};

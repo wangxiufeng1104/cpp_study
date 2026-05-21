@@ -1,0 +1,17 @@
+// RequestReply.idl - 请求应答模式数据类型
+
+module RequestReply
+{
+    struct AddRequest
+    {
+        long a;
+        long b;
+    };
+
+    struct AddReply
+    {
+        long result;
+        boolean success;
+        string message;
+    };
+};

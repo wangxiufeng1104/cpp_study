@@ -1,0 +1,10 @@
+// HelloWorld.idl - 基础HelloWorld数据类型定义
+
+module HelloWorld
+{
+    struct Msg
+    {
+        unsigned long index;
+        string message;
+    };
+};
