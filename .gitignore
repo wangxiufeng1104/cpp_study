@@ -5,3 +5,5 @@ cmake_practice/CMakePrintHelpers/build/*
 cmake_practice/CMakePrintSystemInformation/build/*
 NetDaemon/build/*
 fastdds_test/build/*
+D-BUS/build/*
+.kilo/plans/*

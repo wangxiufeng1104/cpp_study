@@ -1,0 +1,1491 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>D-Bus 详解 — Linux 桌面 IPC 总线</title>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --surface2: #0f3460;
+    --text: #e0e0e0;
+    --text-dim: #a0a0b8;
+    --accent: #e94560;
+    --accent2: #533483;
+    --code-bg: #2d2d44;
+    --border: #2a2a4a;
+    --method: #4fc3f7;
+    --signal: #ffb74d;
+    --property: #81c784;
+    --error: #e57373;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.8;
+    padding: 0;
+  }
+
+  header {
+    background: linear-gradient(135deg, var(--surface2), var(--accent2));
+    padding: 60px 20px;
+    text-align: center;
+    border-bottom: 3px solid var(--accent);
+  }
+  header h1 {
+    font-size: 2.8em;
+    color: #fff;
+    margin-bottom: 10px;
+    letter-spacing: 2px;
+  }
+  header .subtitle {
+    font-size: 1.2em;
+    color: #ccc;
+    font-weight: 300;
+  }
+
+  nav {
+    background: var(--surface);
+    padding: 12px 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  nav a {
+    color: var(--text);
+    text-decoration: none;
+    margin: 0 16px;
+    font-size: 0.95em;
+    padding: 6px 10px;
+    border-radius: 4px;
+    transition: background 0.2s;
+  }
+  nav a:hover { background: var(--surface2); color: var(--accent); }
+
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px 24px;
+  }
+
+  h2 {
+    font-size: 1.8em;
+    color: var(--accent);
+    margin: 48px 0 20px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border);
+  }
+  h3 {
+    font-size: 1.3em;
+    color: #ccc;
+    margin: 28px 0 12px;
+  }
+  h4 {
+    font-size: 1.1em;
+    color: var(--text-dim);
+    margin: 20px 0 8px;
+  }
+
+  p { margin-bottom: 14px; }
+
+  ul, ol { margin: 10px 0 14px 22px; }
+  li { margin-bottom: 6px; }
+
+  code {
+    background: var(--code-bg);
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-family: 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+    font-size: 0.92em;
+  }
+
+  pre {
+    background: var(--code-bg);
+    padding: 16px 20px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    overflow-x: auto;
+    font-family: 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+    font-size: 0.88em;
+    line-height: 1.6;
+    margin: 14px 0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 0.94em;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 10px 14px;
+    text-align: left;
+  }
+  th {
+    background: var(--surface2);
+    color: #fff;
+    font-weight: 600;
+  }
+  td { background: var(--surface); }
+  td code { background: var(--bg); }
+
+  .box {
+    background: var(--surface);
+    border-left: 4px solid var(--accent);
+    padding: 16px 20px;
+    border-radius: 0 6px 6px 0;
+    margin: 16px 0;
+  }
+  .box.info    { border-color: var(--method); }
+  .box.warning { border-color: var(--signal); }
+  .box.tip     { border-color: var(--property); }
+
+  .pattern-card {
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 24px;
+    margin: 20px 0;
+    border: 1px solid var(--border);
+  }
+  .pattern-card h3 { margin-top: 0; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: 600;
+    margin-right: 6px;
+  }
+  .badge.method   { background: var(--method); color: #000; }
+  .badge.signal   { background: var(--signal); color: #000; }
+  .badge.property { background: var(--property); color: #000; }
+  .badge.error    { background: var(--error); color: #000; }
+
+  .diagram {
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 24px;
+    text-align: center;
+    margin: 20px 0;
+    font-family: monospace;
+    font-size: 0.9em;
+    line-height: 2;
+    overflow-x: auto;
+    white-space: pre;
+    border: 1px solid var(--border);
+  }
+
+  /* ===== Architecture / Box Diagrams ===== */
+  .arch-diagram {
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 28px 24px;
+    margin: 20px 0;
+    border: 1px solid var(--border);
+  }
+  .arch-diagram .daemon-box {
+    background: var(--surface2);
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    padding: 16px 20px;
+    text-align: center;
+    margin: 0 auto 20px;
+    max-width: 560px;
+  }
+  .arch-diagram .daemon-box .daemon-title {
+    font-size: 1.15em;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .arch-diagram .daemon-box .daemon-sub {
+    font-size: 0.82em;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+  .arch-diagram .daemon-box .router-box {
+    background: var(--bg);
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 0.88em;
+    display: inline-block;
+  }
+  .arch-diagram .daemon-box .router-box .router-title {
+    font-weight: 600;
+    color: #ccc;
+    margin-bottom: 4px;
+  }
+  .arch-diagram .app-row {
+    display: flex;
+    justify-content: center;
+    gap: 36px;
+    flex-wrap: wrap;
+  }
+  .arch-diagram .app-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 22px;
+    text-align: center;
+    min-width: 100px;
+    position: relative;
+  }
+  .arch-diagram .app-card::before {
+    content: "";
+    position: absolute;
+    top: -16px;
+    left: 50%;
+    width: 2px;
+    height: 16px;
+    background: var(--method);
+    transform: translateX(-50%);
+  }
+  .arch-diagram .conn-label {
+    text-align: center;
+    font-size: 0.78em;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  /* ===== Object Tree Diagram ===== */
+  .tree-diagram {
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 20px 24px 20px 16px;
+    margin: 20px 0;
+    border: 1px solid var(--border);
+    font-size: 0.92em;
+    line-height: 1.6;
+    overflow-x: auto;
+  }
+  .tree-diagram .tn-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 3px 0 3px 4px;
+    position: relative;
+  }
+  .tree-diagram .tn-row.tn-root { padding-left: 0; }
+  .tree-diagram .tn-row.tn-l1   { padding-left: 20px; }
+  .tree-diagram .tn-row.tn-l2   { padding-left: 40px; }
+  .tree-diagram .tn-row.tn-l3   { padding-left: 60px; }
+  .tree-diagram .tn-row.tn-last { }
+
+  .tree-diagram .tn-conn {
+    color: var(--text-dim);
+    font-family: monospace;
+    flex-shrink: 0;
+    min-width: 20px;
+    text-align: right;
+  }
+  .tree-diagram .tn-node {
+    font-family: 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+    flex-shrink: 0;
+  }
+  .tree-diagram .tn-node.tn-service  { color: var(--accent); font-weight: 600; }
+  .tree-diagram .tn-node.tn-path     { color: var(--method); }
+  .tree-diagram .tn-node.tn-iface    { color: var(--signal); }
+  .tree-diagram .tn-node.tn-method   { color: var(--property); }
+  .tree-diagram .tn-node.tn-property { color: var(--method); }
+  .tree-diagram .tn-tag {
+    font-size: 0.75em;
+    background: var(--bg);
+    color: var(--text-dim);
+    padding: 1px 7px;
+    border-radius: 3px;
+    margin-left: 4px;
+    flex-shrink: 0;
+  }
+  .tree-diagram .tn-label {
+    color: var(--text-dim);
+    font-size: 0.85em;
+    margin-left: 2px;
+    flex-shrink: 0;
+  }
+
+  /* ===== Sequence Diagram ===== */
+  .seq-diagram {
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin: 20px 0;
+    border: 1px solid var(--border);
+    font-size: 0.88em;
+    line-height: 1.7;
+    overflow-x: auto;
+  }
+  .seq-diagram .seq-step {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 5px 0;
+    flex-wrap: wrap;
+  }
+  .seq-diagram .step-num {
+    color: var(--text-dim);
+    font-size: 0.8em;
+    min-width: 24px;
+    flex-shrink: 0;
+  }
+  .seq-diagram .step-from,
+  .seq-diagram .step-to {
+    font-weight: 600;
+    min-width: 68px;
+    flex-shrink: 0;
+    text-align: right;
+  }
+  .seq-diagram .step-arrow {
+    font-weight: 700;
+    font-size: 1.15em;
+    min-width: 22px;
+    flex-shrink: 0;
+    text-align: center;
+  }
+  .seq-diagram .step-arrow.arr-r { color: var(--method); }
+  .seq-diagram .step-arrow.arr-l { color: var(--property); }
+  .seq-diagram .step-msg {
+    font-family: 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+    font-size: 0.84em;
+    color: var(--text);
+  }
+  .seq-diagram .step-note {
+    color: var(--text-dim);
+    font-style: italic;
+    font-size: 0.84em;
+    margin-left: 8px;
+  }
+  .seq-diagram .seq-sep {
+    border: none;
+    border-top: 1px dashed var(--border);
+    margin: 8px 0;
+  }
+  .seq-diagram .sc  { color: var(--method); }
+  .seq-diagram .sd  { color: var(--accent); }
+  .seq-diagram .ss  { color: var(--property); }
+  .seq-diagram .sf  { color: var(--signal); }
+  .seq-diagram .sr  { color: var(--property); }
+  .seq-diagram .srb { color: var(--method); }
+
+  /* ===== Layer Diagram ===== */
+  .layer-diagram {
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 0;
+    margin: 20px 0;
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .layer-diagram .layer {
+    padding: 14px 24px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .layer-diagram .layer:last-child { border-bottom: none; }
+  .layer-diagram .layer .layer-title { font-weight: 700; font-size: 1em; margin-bottom: 4px; }
+  .layer-diagram .layer .layer-desc { font-size: 0.84em; color: var(--text-dim); }
+  .layer-diagram .layer-l4 { background: #1a1a3e; }
+  .layer-diagram .layer-l4 .layer-title { color: #ce93d8; }
+  .layer-diagram .layer-l3 { background: #1a2a3e; }
+  .layer-diagram .layer-l3 .layer-title { color: var(--method); }
+  .layer-diagram .layer-l2 { background: #1a3a2e; }
+  .layer-diagram .layer-l2 .layer-title { color: var(--property); }
+  .layer-diagram .layer-l1 { background: #2e1a1a; }
+  .layer-diagram .layer-l1 .layer-title { color: var(--signal); }
+
+  .type-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+    margin: 14px 0;
+  }
+  .type-item {
+    background: var(--surface);
+    padding: 10px 14px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    font-size: 0.9em;
+  }
+  .type-item code { background: transparent; color: var(--accent); }
+
+  footer {
+    background: var(--surface);
+    text-align: center;
+    padding: 30px;
+    margin-top: 60px;
+    border-top: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 0.85em;
+  }
+
+  @media (max-width: 600px) {
+    header h1 { font-size: 1.8em; }
+    .container { padding: 20px 14px; }
+    nav a { margin: 0 8px; font-size: 0.85em; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>D-Bus</h1>
+  <p class="subtitle">Linux 桌面系统进程间通信总线详解</p>
+</header>
+
+<nav>
+  <a href="#overview">概述</a>
+  <a href="#architecture">架构</a>
+  <a href="#bus-types">总线类型</a>
+  <a href="#patterns">通信模式</a>
+  <a href="#concepts">核心概念</a>
+  <a href="#types">类型系统</a>
+  <a href="#activation">服务激活</a>
+  <a href="#layers">协议分层</a>
+  <a href="#api">API速查</a>
+</nav>
+
+<div class="container">
+
+<!-- ============================================================ -->
+<h2 id="overview">1. 什么是 D-Bus</h2>
+
+<p>
+  <strong>D-Bus</strong>（Desktop Bus）是由 freedesktop.org 制定的 <strong>进程间通信（IPC）</strong> 协议，
+  最初设计用于 Linux 桌面环境，现已广泛应用于嵌入式系统、系统服务等领域。
+  它提供了一套完整的消息传递机制，使得独立进程之间可以安全、高效地交换数据。
+</p>
+
+<div class="box info">
+  <strong>核心能力</strong><br>
+  • 方法调用（RPC）— 远程过程调用模型<br>
+  • 信号广播（Signal）— 发布/订阅模型<br>
+  • 属性访问（Properties）— 标准化的属性读写接口<br>
+  • 服务激活（Activation）— 按需自动启动服务进程<br>
+  • 类型安全 — 强类型的消息序列化系统<br>
+  • 安全控制 — 基于策略的访问控制
+</div>
+
+<!-- ============================================================ -->
+<h2 id="architecture">2. 架构设计</h2>
+
+<div class="arch-diagram">
+  <div class="daemon-box">
+    <div class="daemon-title">D-Bus Daemon</div>
+    <div class="daemon-sub">dbus-daemon / dbus-broker</div>
+    <div class="router-box">
+      <div class="router-title">Message Router + Policy Engine</div>
+      • 路由方法调用到匹配的服务进程<br>
+      • 广播信号到所有订阅者<br>
+      • 基于 XML 策略的访问控制<br>
+      • Service Name 注册与查找
+    </div>
+  </div>
+  <div class="conn-label">Unix Domain Socket 连接</div>
+  <div class="app-row">
+    <div class="app-card">
+      <strong>App A</strong><br>
+      <code>:1.42</code>
+    </div>
+    <div class="app-card">
+      <strong>App B</strong><br>
+      <code>:1.43</code>
+    </div>
+    <div class="app-card">
+      <strong>App C</strong><br>
+      <code>:1.44</code>
+    </div>
+  </div>
+</div>
+
+<h3>2.1 核心组件</h3>
+
+<table>
+  <tr>
+    <th>组件</th>
+    <th>说明</th>
+  </tr>
+  <tr>
+    <td><strong>D-Bus Daemon</strong></td>
+    <td>消息总线守护进程（<code>dbus-daemon</code>），负责消息路由、服务名管理、访问控制。
+    每个 Bus 实例有且仅有一个 daemon 进程。</td>
+  </tr>
+  <tr>
+    <td><strong>Client Connection</strong></td>
+    <td>客户端连接 — 每个使用 D-Bus 的进程通过 Unix Domain Socket 连接到 daemon，
+    获得唯一的连接名（如 <code>:1.42</code>）。</td>
+  </tr>
+  <tr>
+    <td><strong>Service Name</strong></td>
+    <td>服务名 — 人类可读的全局标识（如 <code>org.freedesktop.NetworkManager</code>），
+    进程可请求一个或多个服务名，daemon 负责去重和路由。</td>
+  </tr>
+  <tr>
+    <td><strong>Object Path</strong></td>
+    <td>对象路径 — 类似文件路径的层次化结构（如 <code>/org/freedesktop/NetworkManager/Devices/0</code>），
+    标识服务内某个具体的 D-Bus 对象。</td>
+  </tr>
+  <tr>
+    <td><strong>Interface</strong></td>
+    <td>接口 — 一组方法、信号、属性的集合，类似 OOP 中的接口概念
+    （如 <code>org.freedesktop.NetworkManager.Device</code>）。</td>
+  </tr>
+</table>
+
+<h3>2.2 层次化设计</h3>
+
+<div class="tree-diagram">
+  <div class="tn-row tn-root">
+    <span class="tn-node tn-service">NetworkManager</span>
+    <span class="tn-label">← Service Name</span>
+  </div>
+  <div class="tn-row tn-l1 tn-last">
+    <span class="tn-conn">└──</span>
+    <span class="tn-node tn-path">/org/freedesktop/NetworkManager</span>
+    <span class="tn-label">← Object Path</span>
+  </div>
+  <div class="tn-row tn-l2">
+    <span class="tn-conn">├──</span>
+    <span class="tn-node tn-iface">org.freedesktop.NetworkManager</span>
+    <span class="tn-label">← Interface</span>
+  </div>
+  <div class="tn-row tn-l3">
+    <span class="tn-conn">├──</span>
+    <span class="tn-node tn-method">GetDevices()</span>
+    <span class="tn-tag">Method</span>
+  </div>
+  <div class="tn-row tn-l3">
+    <span class="tn-conn">├──</span>
+    <span class="tn-node tn-method">ActivateConnection()</span>
+    <span class="tn-tag">Method</span>
+  </div>
+  <div class="tn-row tn-l3">
+    <span class="tn-conn">├──</span>
+    <span class="tn-node tn-method">StateChanged</span>
+    <span class="tn-tag">Signal</span>
+  </div>
+  <div class="tn-row tn-l3">
+    <span class="tn-conn">└──</span>
+    <span class="tn-node tn-property">WirelessEnabled</span>
+    <span class="tn-tag">Property</span>
+  </div>
+  <div class="tn-row tn-l2 tn-last">
+    <span class="tn-conn">└──</span>
+    <span class="tn-node tn-iface">org.freedesktop.DBus.Properties</span>
+    <span class="tn-label">← 标准接口</span>
+  </div>
+  <div class="tn-row tn-l3">
+    <span class="tn-conn">├──</span>
+    <span class="tn-node tn-method">Get(iface, prop)</span>
+  </div>
+  <div class="tn-row tn-l3">
+    <span class="tn-conn">├──</span>
+    <span class="tn-node tn-method">Set(iface, prop, val)</span>
+  </div>
+  <div class="tn-row tn-l3 tn-last">
+    <span class="tn-conn">└──</span>
+    <span class="tn-node tn-method">GetAll(iface)</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="bus-types">3. 总线类型</h2>
+
+<table>
+  <tr>
+    <th>总线类型</th>
+    <th>Socket 地址</th>
+    <th>用途</th>
+  </tr>
+  <tr>
+    <td><strong>System Bus</strong></td>
+    <td><code>unix:path=/var/run/dbus/system_bus_socket</code></td>
+    <td>系统级服务：硬件事件、网络管理、电源管理、udev、systemd-logind<br>
+    需要 root 权限或 PolicyKit 授权</td>
+  </tr>
+  <tr>
+    <td><strong>Session Bus</strong></td>
+    <td><code>unix:path=/run/user/1000/bus</code> (或 <code>$DBUS_SESSION_BUS_ADDRESS</code>)</td>
+    <td>用户会话级服务：桌面通知、剪贴板、文件管理器、媒体播放器<br>
+    每个登录用户一个实例</td>
+  </tr>
+  <tr>
+    <td><strong>Private Bus</strong></td>
+    <td>自定义地址</td>
+    <td>应用内部或应用间私有通信，不与其他进程共享<br>
+    systemd 使用 private bus 进行内部通信</td>
+  </tr>
+</table>
+
+<div class="box tip">
+  <strong>选择建议</strong><br>
+  • 系统守护进程 → System Bus<br>
+  • 桌面应用通信 → Session Bus<br>
+  • 进程内/小范围通信 → Private Bus
+</div>
+
+<!-- ============================================================ -->
+<h2 id="patterns">4. 通信模式</h2>
+
+<p>
+  D-Bus 支持 <strong>四种消息类型</strong>，对应三种核心通信模式：
+</p>
+
+<!-- METHOD CALL -->
+<div class="pattern-card">
+  <h3><span class="badge method">METHOD_CALL</span> + <span class="badge method">METHOD_RETURN</span>
+  &nbsp; 方法调用 (RPC)</h3>
+
+  <p>D-Bus 最基础的通信模式，客户端向服务端发送请求并等待回复，是典型的<strong>同步/异步 RPC</strong> 模型。</p>
+
+  <div class="seq-diagram">
+    <div class="seq-step">
+      <span class="step-num">1</span>
+      <span class="step-from sc">Client</span>
+      <span class="step-arrow arr-r">→</span>
+      <span class="step-to sd">Daemon</span>
+      <span class="step-msg">method_call(dest="com.example.Svc", path="/com/example/Obj", method="Add", args=[7,3])</span>
+    </div>
+    <div class="seq-step">
+      <span class="step-num">2</span>
+      <span class="step-from sd">Daemon</span>
+      <span class="step-arrow arr-r">→</span>
+      <span class="step-to ss">Server</span>
+      <span class="step-msg">method_call(...)</span>
+      <span class="step-note">路由转发</span>
+    </div>
+    <div class="seq-step">
+      <span class="step-num"></span>
+      <span class="step-from ss" style="min-width:160px">Server 处理请求</span>
+      <span class="step-msg">a=7, b=3 → result=10</span>
+    </div>
+    <hr class="seq-sep">
+    <div class="seq-step">
+      <span class="step-num">3</span>
+      <span class="step-from ss">Server</span>
+      <span class="step-arrow arr-l">←</span>
+      <span class="step-to sd">Daemon</span>
+      <span class="step-msg">method_return(10)</span>
+    </div>
+    <div class="seq-step">
+      <span class="step-num">4</span>
+      <span class="step-from sd">Daemon</span>
+      <span class="step-arrow arr-l">←</span>
+      <span class="step-to sc">Client</span>
+      <span class="step-msg">method_return(10)</span>
+    </div>
+  </div>
+
+  <h4>API 示例 (libdbus-1)</h4>
+  <pre><code>// === 客户端 ===
+DBusMessage *msg = dbus_message_new_method_call(
+    "com.example.Svc",          // 目标服务名
+    "/com/example/Obj",         // 对象路径
+    "com.example.Iface",        // 接口
+    "Add");                     // 方法名
+dbus_int32_t a = 7, b = 3;
+dbus_message_append_args(msg,
+    DBUS_TYPE_INT32, &a,
+    DBUS_TYPE_INT32, &b,
+    DBUS_TYPE_INVALID);
+
+// 同步调用，阻塞等待回复
+DBusMessage *reply = dbus_connection_send_with_reply_and_block(
+    conn, msg, DBUS_TIMEOUT_USE_DEFAULT, &err);
+
+// 解析回复
+dbus_int32_t result;
+dbus_message_get_args(reply, &err,
+    DBUS_TYPE_INT32, &result, DBUS_TYPE_INVALID);</code></pre>
+</div>
+
+<!-- SIGNAL -->
+<div class="pattern-card">
+  <h3><span class="badge signal">SIGNAL</span> &nbsp; 信号广播 (发布/订阅)</h3>
+
+  <p>信号是一种<strong>单向广播</strong>机制：发送者发布信号，daemon 将信号推送给所有匹配 match rule 的订阅者。
+  信号不需要回复，发送者不知道有哪些接收者。</p>
+
+  <div class="seq-diagram">
+    <div class="seq-step">
+      <span class="step-num">1</span>
+      <span class="step-from sc">Sender</span>
+      <span class="step-arrow arr-r">→</span>
+      <span class="step-to sd">Daemon</span>
+      <span class="step-msg">signal(path="/com/ex/Object", iface="com.ex.Iface", name="ValueChanged", args=["power",true])</span>
+    </div>
+    <hr class="seq-sep">
+    <div class="seq-step">
+      <span class="step-num">2</span>
+      <span class="step-from sd">Daemon</span>
+      <span class="step-arrow arr-r">→</span>
+      <span class="step-to sr">Receiver A</span>
+      <span class="step-msg">signal(...)</span>
+      <span class="step-note">match rule 匹配</span>
+    </div>
+    <div class="seq-step">
+      <span class="step-num">3</span>
+      <span class="step-from sd">Daemon</span>
+      <span class="step-arrow arr-r">→</span>
+      <span class="step-to srb">Receiver B</span>
+      <span class="step-msg">signal(...)</span>
+      <span class="step-note">match rule 匹配</span>
+    </div>
+  </div>
+
+  <h4>订阅规则 (Match Rule)</h4>
+  <p>客户端通过 <strong>match rule</strong> 字符串告诉 daemon 对哪些信号感兴趣，只有匹配的信号才会被转发。
+  这种服务端过滤机制避免了不必要的消息传输。</p>
+
+  <pre><code>// 订阅 match rule
+dbus_bus_add_match(conn,
+    "type='signal',"
+    "interface='com.example.Iface',"
+    "member='ValueChanged'",
+    &err);
+
+// 在消息循环中接收信号
+while ((msg = dbus_connection_pop_message(conn)) != NULL) {
+    if (dbus_message_is_signal(msg, "com.example.Iface", "ValueChanged")) {
+        // 处理信号
+    }
+    dbus_message_unref(msg);
+}</code></pre>
+
+  <h4>Match Rule 参数</h4>
+  <table>
+    <tr><th>参数</th><th>说明</th><th>示例</th></tr>
+    <tr><td>type</td><td>消息类型</td><td><code>type='signal'</code></td></tr>
+    <tr><td>sender</td><td>发送者连接名</td><td><code>sender=':1.42'</code></td></tr>
+    <tr><td>interface</td><td>接口名</td><td><code>interface='org.foo.Bar'</code></td></tr>
+    <tr><td>member</td><td>信号名</td><td><code>member='PropertiesChanged'</code></td></tr>
+    <tr><td>path</td><td>对象路径</td><td><code>path='/org/freedesktop/UPower'</code></td></tr>
+    <tr><td>path_namespace</td><td>路径前缀匹配</td><td><code>path_namespace='/org/freedesktop'</code></td></tr>
+    <tr><td>destination</td><td>目标连接名</td><td><code>destination='com.example.App'</code></td></tr>
+  </table>
+</div>
+
+<!-- PROPERTIES -->
+<div class="pattern-card">
+  <h3><span class="badge property">Properties</span> &nbsp; 属性接口</h3>
+
+  <p>D-Bus 规范定义了标准接口 <code>org.freedesktop.DBus.Properties</code>，
+  所有 D-Bus 对象都应该实现这个接口以支持属性读写。</p>
+
+  <table>
+    <tr>
+      <th>方法</th>
+      <th>参数</th>
+      <th>返回值</th>
+      <th>说明</th>
+    </tr>
+    <tr>
+      <td><code>Get</code></td>
+      <td>STRING interface, STRING property</td>
+      <td>VARIANT value</td>
+      <td>读取单个属性</td>
+    </tr>
+    <tr>
+      <td><code>Set</code></td>
+      <td>STRING interface, STRING property, VARIANT value</td>
+      <td>—</td>
+      <td>写入单个属性</td>
+    </tr>
+    <tr>
+      <td><code>GetAll</code></td>
+      <td>STRING interface</td>
+      <td>DICT&lt;STRING,VARIANT&gt;</td>
+      <td>读取接口全部属性</td>
+    </tr>
+  </table>
+
+  <p>此外，当属性值发生变化时，应发送标准信号 <code>org.freedesktop.DBus.Properties.PropertiesChanged</code>。</p>
+
+  <pre><code>// PropertiesChanged 信号参数:
+//   STRING  interface_name       — 属性所属的接口
+//   DICT    changed_properties    — 变更的属性键值对
+//   ARRAY   invalidated_properties — 失效的属性名列表（值未知）</code></pre>
+</div>
+
+<!-- ERROR -->
+<div class="pattern-card">
+  <h3><span class="badge error">ERROR</span> &nbsp; 错误回复</h3>
+
+  <p>当方法调用失败时，服务端返回 <strong>ERROR</strong> 消息而非 <strong>METHOD_RETURN</strong>。
+  D-Bus 预定义了一组标准错误名称。</p>
+
+  <table>
+    <tr><th>错误名</th><th>说明</th></tr>
+    <tr><td><code>org.freedesktop.DBus.Error.Failed</code></td><td>通用错误</td></tr>
+    <tr><td><code>org.freedesktop.DBus.Error.InvalidArgs</code></td><td>参数无效</td></tr>
+    <tr><td><code>org.freedesktop.DBus.Error.UnknownMethod</code></td><td>方法不存在</td></tr>
+    <tr><td><code>org.freedesktop.DBus.Error.UnknownInterface</code></td><td>接口不存在</td></tr>
+    <tr><td><code>org.freedesktop.DBus.Error.UnknownProperty</code></td><td>属性不存在</td></tr>
+    <tr><td><code>org.freedesktop.DBus.Error.AccessDenied</code></td><td>权限不足</td></tr>
+    <tr><td><code>org.freedesktop.DBus.Error.ServiceUnknown</code></td><td>服务名未注册</td></tr>
+    <tr><td><code>org.freedesktop.DBus.Error.Timeout</code></td><td>超时无回复</td></tr>
+  </table>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="concepts">5. 核心概念</h2>
+
+<h3>5.1 命名约定</h3>
+
+<table>
+  <tr>
+    <th>概念</th>
+    <th>格式</th>
+    <th>示例</th>
+  </tr>
+  <tr>
+    <td><strong>Service Name</strong></td>
+    <td>反向域名，至少包含一个 <code>.</code></td>
+    <td><code>org.freedesktop.NetworkManager</code></td>
+  </tr>
+  <tr>
+    <td><strong>Object Path</strong></td>
+    <td>类似 Unix 路径，以 <code>/</code> 分隔</td>
+    <td><code>/org/freedesktop/NetworkManager/Devices/0</code></td>
+  </tr>
+  <tr>
+    <td><strong>Interface</strong></td>
+    <td>同 Service Name 格式</td>
+    <td><code>org.freedesktop.NetworkManager.Device</code></td>
+  </tr>
+  <tr>
+    <td><strong>Member</strong></td>
+    <td>由字母数字和下划线组成，必须以字母开头</td>
+    <td><code>GetDevices</code>, <code>StateChanged</code></td>
+  </tr>
+  <tr>
+    <td><strong>Connection Name</strong></td>
+    <td><code>:数字.数字</code></td>
+    <td><code>:1.42</code>（daemon 自动分配）</td>
+  </tr>
+  <tr>
+    <td><strong>Error Name</strong></td>
+    <td>同 Interface 格式</td>
+    <td><code>org.freedesktop.DBus.Error.InvalidArgs</code></td>
+  </tr>
+</table>
+
+<h3>5.2 标准接口</h3>
+
+<p>D-Bus 规范定义了几个所有对象都应支持的标准接口：</p>
+
+<table>
+  <tr><th>接口</th><th>说明</th></tr>
+  <tr>
+    <td><code>org.freedesktop.DBus.Introspectable</code></td>
+    <td>提供 <code>Introspect()</code> 方法，返回描述对象接口的 XML</td>
+  </tr>
+  <tr>
+    <td><code>org.freedesktop.DBus.Properties</code></td>
+    <td><code>Get / Set / GetAll</code> 属性操作 + <code>PropertiesChanged</code> 信号</td>
+  </tr>
+  <tr>
+    <td><code>org.freedesktop.DBus.ObjectManager</code></td>
+    <td><code>GetManagedObjects()</code> — 获取对象树中所有对象的接口和属性</td>
+  </tr>
+  <tr>
+    <td><code>org.freedesktop.DBus.Peer</code></td>
+    <td><code>Ping()</code> 和 <code>GetMachineId()</code></td>
+  </tr>
+</table>
+
+<h3>5.3 Name 所有权</h3>
+
+<p>进程请求 Service Name 时的 Flag 选项：</p>
+
+<table>
+  <tr><th>Flag</th><th>行为</th></tr>
+  <tr>
+    <td><code>DBUS_NAME_FLAG_REPLACE_EXISTING</code></td>
+    <td>如果该名称已被占用，替换原所有者（若原所有者允许）</td>
+  </tr>
+  <tr>
+    <td><code>DBUS_NAME_FLAG_ALLOW_REPLACEMENT</code></td>
+    <td>允许其他进程替换本进程</td>
+  </tr>
+  <tr>
+    <td><code>DBUS_NAME_FLAG_DO_NOT_QUEUE</code></td>
+    <td>如果名称已被占用且不可替换，直接失败而不排队</td>
+  </tr>
+</table>
+
+<p>请求后的返回码：</p>
+
+<table>
+  <tr><th>返回值</th><th>含义</th></tr>
+  <tr><td><code>DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER</code> (1)</td><td>成功成为主所有者</td></tr>
+  <tr><td><code>DBUS_REQUEST_NAME_REPLY_IN_QUEUE</code> (2)</td><td>已加入等待队列</td></tr>
+  <tr><td><code>DBUS_REQUEST_NAME_REPLY_EXISTS</code> (3)</td><td>名称已被占用且不可替换</td></tr>
+  <tr><td><code>DBUS_REQUEST_NAME_REPLY_ALREADY_OWNER</code> (4)</td><td>已经是该名称的所有者</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="types">6. 类型系统</h2>
+
+<p>
+  D-Bus 具有<strong>强类型</strong>的消息序列化系统，所有参数必须声明类型。
+  类型使用 <strong>type signature string</strong> 表示（例如 <code>"si"</code> 表示 string + int32）。
+</p>
+
+<h3>6.1 基本类型</h3>
+
+<div class="type-grid">
+  <div class="type-item"><code>BYTE (y)</code> — 8 位无符号整数</div>
+  <div class="type-item"><code>BOOLEAN (b)</code> — 布尔值</div>
+  <div class="type-item"><code>INT16 (n)</code> — 16 位有符号整数</div>
+  <div class="type-item"><code>UINT16 (q)</code> — 16 位无符号整数</div>
+  <div class="type-item"><code>INT32 (i)</code> — 32 位有符号整数</div>
+  <div class="type-item"><code>UINT32 (u)</code> — 32 位无符号整数</div>
+  <div class="type-item"><code>INT64 (x)</code> — 64 位有符号整数</div>
+  <div class="type-item"><code>UINT64 (t)</code> — 64 位无符号整数</div>
+  <div class="type-item"><code>DOUBLE (d)</code> — IEEE 754 双精度浮点</div>
+  <div class="type-item"><code>STRING (s)</code> — UTF-8 字符串</div>
+  <div class="type-item"><code>OBJECT_PATH (o)</code> — 对象路径</div>
+  <div class="type-item"><code>SIGNATURE (g)</code> — 类型签名</div>
+  <div class="type-item"><code>UNIX_FD (h)</code> — Unix 文件描述符</div>
+</div>
+
+<h3>6.2 容器类型</h3>
+
+<table>
+  <tr><th>类型</th><th>签名</th><th>示例签名</th><th>说明</th></tr>
+  <tr>
+    <td><strong>STRUCT</strong></td>
+    <td><code>(...)</code></td>
+    <td><code>(si)</code></td>
+    <td>固定字段的结构体，类似 C 的 struct</td>
+  </tr>
+  <tr>
+    <td><strong>ARRAY</strong></td>
+    <td><code>a</code>{<em>type</em>}</td>
+    <td><code>ai</code> (int32 数组)<br><code>as</code> (string 数组)</td>
+    <td>同类型元素的序列</td>
+  </tr>
+  <tr>
+    <td><strong>VARIANT</strong></td>
+    <td><code>v</code></td>
+    <td><code>v</code></td>
+    <td>可容纳任意单一类型的容器，运行时携带类型信息</td>
+  </tr>
+  <tr>
+    <td><strong>DICT_ENTRY</strong></td>
+    <td><code>{kv}</code></td>
+    <td><code>{si}</code></td>
+    <td>键值对，仅出现在 ARRAY 中（即 <code>a{sv}</code>）</td>
+  </tr>
+</table>
+
+<h3>6.3 类型签名示例</h3>
+
+<pre><code>"i"               → 单个 int32
+"si"              → struct { string, int32 }
+"a{sv}"           → 字典 (string → variant)
+"a(si)"           → struct 数组
+"(siab)"          → struct { string, int32, array<byte>, boolean }
+"a{sa{sv}}"       → 嵌套字典 (string → dict{string, variant})</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="activation">7. 服务激活 (Service Activation)</h2>
+
+<p>
+  D-Bus daemon 支持<strong>按需启动</strong>服务 — 当客户端向一个未运行的服务发送消息时，
+  daemon 自动根据 <code>.service</code> 文件中的指令启动该服务。
+</p>
+
+<h3>7.1 .service 文件</h3>
+
+<p>Service 文件定义了 daemon 如何启动服务进程：</p>
+
+<pre><code>[D-BUS Service]
+Name=com.example.ActivationTest
+Exec=/usr/local/bin/dbus_activation_server
+User=root
+SystemdService=dbus-com.example.service</code></pre>
+
+<table>
+  <tr><th>字段</th><th>说明</th></tr>
+  <tr><td><code>Name</code></td><td>服务名，必须与进程请求的 service name 一致</td></tr>
+  <tr><td><code>Exec</code></td><td>启动服务的可执行文件路径（绝对路径）</td></tr>
+  <tr><td><code>User</code></td><td>以哪个用户身份运行（仅 system bus）</td></tr>
+  <tr><td><code>SystemdService</code></td><td>systemd 服务单元名（推荐用于 system bus）</td></tr>
+</table>
+
+<h3>7.2 激活流程</h3>
+
+<div class="seq-diagram">
+    <div class="seq-step">
+      <span class="step-num">1</span>
+      <span class="step-from sc">Client</span>
+      <span class="step-arrow arr-r">→</span>
+      <span class="step-to sd">Daemon</span>
+      <span class="step-msg">method_call("Ping")</span>
+      <span class="step-note">com.example.Activation</span>
+    </div>
+    <hr class="seq-sep">
+    <div class="seq-step">
+      <span class="step-num">2</span>
+      <span class="step-from sd">Daemon</span>
+      <span class="step-arrow arr-r">→</span>
+      <span class="step-to sf">.service</span>
+      <span class="step-msg">查找 com.example.Activation</span>
+      <span class="step-note">→ 服务未运行</span>
+    </div>
+    <div class="seq-step">
+      <span class="step-num"></span>
+      <span class="step-from sf">.service</span>
+      <span class="step-arrow arr-l">←</span>
+      <span class="step-to sd">Daemon</span>
+      <span class="step-msg">返回 Exec= 字段</span>
+    </div>
+    <hr class="seq-sep">
+    <div class="seq-step">
+      <span class="step-num">3</span>
+      <span class="step-from sd">Daemon</span>
+      <span class="step-arrow arr-r">→</span>
+      <span class="step-to ss">Server</span>
+      <span class="step-msg">fork() + exec(server)</span>
+      <span class="step-note">启动服务进程</span>
+    </div>
+    <div class="seq-step">
+      <span class="step-num"></span>
+      <span class="step-from ss">Server</span>
+      <span class="step-arrow arr-l">←</span>
+      <span class="step-to sd">Daemon</span>
+      <span class="step-msg">注册 Service Name 成功</span>
+      <span class="step-note">客户端在此期间挂起等待</span>
+    </div>
+    <hr class="seq-sep">
+    <div class="seq-step">
+      <span class="step-num">4</span>
+      <span class="step-from sd">Daemon</span>
+      <span class="step-arrow arr-r">→</span>
+      <span class="step-to ss">Server</span>
+      <span class="step-msg">method_call("Ping")</span>
+      <span class="step-note">转发已挂起的请求</span>
+    </div>
+    <div class="seq-step">
+      <span class="step-num">5</span>
+      <span class="step-from ss">Server</span>
+      <span class="step-arrow arr-l">←</span>
+      <span class="step-to sd">Daemon</span>
+      <span class="step-msg">method_return("Pong — activated by dbus-daemon")</span>
+    </div>
+    <div class="seq-step">
+      <span class="step-num">6</span>
+      <span class="step-from sd">Daemon</span>
+      <span class="step-arrow arr-l">←</span>
+      <span class="step-to sc">Client</span>
+      <span class="step-msg">method_return("Pong — activated by dbus-daemon")</span>
+    </div>
+  </div>
+
+<h3>7.3 Service 文件位置</h3>
+
+<table>
+  <tr><th>范围</th><th>路径</th></tr>
+  <tr><td>用户层面 (session bus)</td><td><code>~/.local/share/dbus-1/services/</code></td></tr>
+  <tr><td>系统层面 (system bus)</td><td><code>/usr/share/dbus-1/services/</code></td></tr>
+  <tr><td>系统层面 (system bus)</td><td><code>/usr/local/share/dbus-1/services/</code></td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="layers">8. 协议分层</h2>
+
+<p>D-Bus 协议采用分层设计：</p>
+
+<div class="layer-diagram">
+    <div class="layer layer-l4">
+      <div class="layer-title">🔌 High-level Bindings</div>
+      <div class="layer-desc">GDBus (GLib) &nbsp;|&nbsp; QtDBus &nbsp;|&nbsp; sd-bus (systemd)<br>类型安全封装 · 事件循环集成 · 代码生成</div>
+    </div>
+    <div class="layer layer-l3">
+      <div class="layer-title">📦 Low-level C API (libdbus-1)</div>
+      <div class="layer-desc">dbus_connection_* · dbus_message_* · dbus_bus_* · dbus_message_iter_*<br>手动类型序列化 · 消息构造 / 解析</div>
+    </div>
+    <div class="layer layer-l2">
+      <div class="layer-title">📡 Wire Protocol (D-Bus Protocol)</div>
+      <div class="layer-desc">消息格式：Header (字节序 / 类型 / 长度 / 序列号…) + Body (类型签名 + 序列化数据)</div>
+    </div>
+    <div class="layer layer-l1">
+      <div class="layer-title">🔗 Transport Layer</div>
+      <div class="layer-desc">Unix Domain Socket (默认) &nbsp;|&nbsp; TCP (远程) &nbsp;|&nbsp; Abstract Socket (免路径)</div>
+    </div>
+  </div>
+
+<div class="box info">
+  <strong>实现选择</strong><br>
+  • <code>libdbus-1</code> — freedesktop.org 参考实现，最底层，功能最完整<br>
+  • <code>GDBus</code> — GLib/GIO 绑定，GObject 集成，异步 API<br>
+  • <code>sd-bus</code> — systemd 提供的现代 C 库，更简洁的 API<br>
+  • <code>QtDBus</code> — Qt 框架绑定，与 Qt 类型系统和事件循环集成
+</div>
+
+<!-- ============================================================ -->
+<h2 id="api">9. libdbus-1 API 接口速查</h2>
+
+<div class="box info">
+  <strong>说明</strong><br>
+  以下 API 均来自 freedesktop.org 的 libdbus-1 参考实现。完整文档见
+  <a href="https://dbus.freedesktop.org/doc/api/html/" style="color:var(--method);">D-Bus API Reference</a>。
+  每个 API 标注了对应源码文件的使用位置，可对照学习。
+</div>
+
+<h3>9.1 连接管理</h3>
+
+<table>
+  <tr><th>API</th><th>签名</th><th>说明</th></tr>
+  <tr>
+    <td><code>dbus_error_init</code></td>
+    <td><code>void dbus_error_init(DBusError *error)</code></td>
+    <td>初始化 error 对象，使用前必须调用</td>
+  </tr>
+  <tr>
+    <td><code>dbus_error_is_set</code></td>
+    <td><code>dbus_bool_t dbus_error_is_set(const DBusError *error)</code></td>
+    <td>检查 error 是否被设置（非空）</td>
+  </tr>
+  <tr>
+    <td><code>dbus_error_free</code></td>
+    <td><code>void dbus_error_free(DBusError *error)</code></td>
+    <td>释放 error 内部资源</td>
+  </tr>
+  <tr>
+    <td><code>dbus_bus_get</code></td>
+    <td><code>DBusConnection* dbus_bus_get(DBusBusType type, DBusError *error)</code></td>
+    <td>连接到指定总线。<code>DBUS_BUS_SESSION</code> / <code>DBUS_BUS_SYSTEM</code>。返回的连接已被 daemon 认证，自动集成主循环</td>
+  </tr>
+  <tr>
+    <td><code>dbus_connection_unref</code></td>
+    <td><code>void dbus_connection_unref(DBusConnection *conn)</code></td>
+    <td>减少连接引用计数，归零时关闭连接</td>
+  </tr>
+  <tr>
+    <td><code>dbus_connection_flush</code></td>
+    <td><code>void dbus_connection_flush(DBusConnection *conn)</code></td>
+    <td>阻塞直到所有待发送数据写入 socket</td>
+  </tr>
+</table>
+
+<p><em>使用位置: dbus_server.cpp, dbus_client.cpp, dbus_signal_sender.cpp, dbus_signal_receiver.cpp</em></p>
+
+<h3>9.2 消息构造（发送方）</h3>
+
+<table>
+  <tr><th>API</th><th>签名</th><th>说明</th></tr>
+  <tr>
+    <td><code>dbus_message_new_method_call</code></td>
+    <td><code>DBusMessage* dbus_message_new_method_call(const char *dest, const char *path, const char *iface, const char *method)</code></td>
+    <td>创建 METHOD_CALL 消息。四个参数定位目标：服务名、对象路径、接口名、方法名</td>
+  </tr>
+  <tr>
+    <td><code>dbus_message_new_signal</code></td>
+    <td><code>DBusMessage* dbus_message_new_signal(const char *path, const char *iface, const char *name)</code></td>
+    <td>创建 SIGNAL 消息。无 <code>dest</code> 参数（广播语义），只需 path + iface + name</td>
+  </tr>
+  <tr>
+    <td><code>dbus_message_new_method_return</code></td>
+    <td><code>DBusMessage* dbus_message_new_method_return(DBusMessage *method_call)</code></td>
+    <td>以收到的 method_call 消息为模板，创建 METHOD_RETURN 回复</td>
+  </tr>
+  <tr>
+    <td><code>dbus_message_new_error</code></td>
+    <td><code>DBusMessage* dbus_message_new_error(DBusMessage *method_call, const char *error_name, const char *error_message)</code></td>
+    <td>创建 ERROR 回复消息</td>
+  </tr>
+  <tr>
+    <td><code>dbus_message_append_args</code></td>
+    <td><code>dbus_bool_t dbus_message_append_args(DBusMessage *msg, int first_type, ...)</code></td>
+    <td>向消息追加基本类型参数。变参以 <code>DBUS_TYPE_*</code> 类型标记+值指针成对传入，<code>DBUS_TYPE_INVALID</code> 终止。<strong>不支持 VARIANT/ARRAY/DICT 等容器类型</strong></td>
+  </tr>
+  <tr>
+    <td><code>dbus_message_unref</code></td>
+    <td><code>void dbus_message_unref(DBusMessage *msg)</code></td>
+    <td>减少消息引用计数，归零时释放消息内存</td>
+  </tr>
+</table>
+
+<p><em>使用位置: dbus_client.cpp:26-37, dbus_server.cpp:37-43, dbus_signal_sender.cpp:38-50</em></p>
+
+<h3>9.3 消息解析（接收方）</h3>
+
+<table>
+  <tr><th>API</th><th>签名</th><th>说明</th></tr>
+  <tr>
+    <td><code>dbus_message_get_type</code></td>
+    <td><code>int dbus_message_get_type(DBusMessage *msg)</code></td>
+    <td>返回消息类型：<code>DBUS_MESSAGE_TYPE_METHOD_CALL</code> / <code>METHOD_RETURN</code> / <code>ERROR</code> / <code>SIGNAL</code></td>
+  </tr>
+  <tr>
+    <td><code>dbus_message_is_method_call</code></td>
+    <td><code>dbus_bool_t dbus_message_is_method_call(DBusMessage *msg, const char *iface, const char *method)</code></td>
+    <td>检查是否为指定接口+方法的调用。<strong>method 参数不能为 NULL</strong>（否则触发断言崩溃）</td>
+  </tr>
+  <tr>
+    <td><code>dbus_message_is_signal</code></td>
+    <td><code>dbus_bool_t dbus_message_is_signal(DBusMessage *msg, const char *iface, const char *name)</code></td>
+    <td>检查是否为指定接口+名称的信号</td>
+  </tr>
+  <tr>
+    <td><code>dbus_message_get_args</code></td>
+    <td><code>dbus_bool_t dbus_message_get_args(DBusMessage *msg, DBusError *error, int first_type, ...)</code></td>
+    <td>从消息中按顺序提取基本类型参数。变参格式与 <code>append_args</code> 相同。<strong>不支持容器类型</strong></td>
+  </tr>
+  <tr>
+    <td><code>dbus_message_get_member</code></td>
+    <td><code>const char* dbus_message_get_member(DBusMessage *msg)</code></td>
+    <td>返回方法名/信号名（member 字段）</td>
+  </tr>
+  <tr>
+    <td><code>dbus_message_get_interface</code></td>
+    <td><code>const char* dbus_message_get_interface(DBusMessage *msg)</code></td>
+    <td>返回消息的接口名</td>
+  </tr>
+  <tr>
+    <td><code>dbus_message_get_sender</code></td>
+    <td><code>const char* dbus_message_get_sender(DBusMessage *msg)</code></td>
+    <td>返回消息发送者的唯一连接名（如 <code>:1.42</code>）</td>
+  </tr>
+  <tr>
+    <td><code>dbus_message_get_path</code></td>
+    <td><code>const char* dbus_message_get_path(DBusMessage *msg)</code></td>
+    <td>返回消息的目标对象路径</td>
+  </tr>
+</table>
+
+<p><em>使用位置: dbus_server.cpp:33, dbus_client.cpp:53-55, dbus_properties_server.cpp:200-211, dbus_activation_server.cpp:21</em></p>
+
+<h3>9.4 消息迭代器（处理复合类型）</h3>
+
+<table>
+  <tr><th>API</th><th>签名</th><th>说明</th></tr>
+  <tr>
+    <td><code>dbus_message_iter_init</code></td>
+    <td><code>dbus_bool_t dbus_message_iter_init(DBusMessage *msg, DBusMessageIter *iter)</code></td>
+    <td>初始化迭代器，指向消息体的第一个参数。用于<strong>读取</strong>消息内容</td>
+  </tr>
+  <tr>
+    <td><code>dbus_message_iter_init_append</code></td>
+    <td><code>void dbus_message_iter_init_append(DBusMessage *msg, DBusMessageIter *iter)</code></td>
+    <td>初始化追加迭代器，用于向消息体<strong>逐步追加</strong>参数</td>
+  </tr>
+  <tr>
+    <td><code>dbus_message_iter_get_arg_type</code></td>
+    <td><code>int dbus_message_iter_get_arg_type(const DBusMessageIter *iter)</code></td>
+    <td>返回迭代器当前位置的参数类型。遍历完返回 <code>DBUS_TYPE_INVALID</code></td>
+  </tr>
+  <tr>
+    <td><code>dbus_message_iter_get_basic</code></td>
+    <td><code>void dbus_message_iter_get_basic(DBusMessageIter *iter, void *value)</code></td>
+    <td>读取当前位置的基本类型值到 value 指针</td>
+  </tr>
+  <tr>
+    <td><code>dbus_message_iter_append_basic</code></td>
+    <td><code>dbus_bool_t dbus_message_iter_append_basic(DBusMessageIter *iter, int type, const void *value)</code></td>
+    <td>向迭代器当前位置追加一个基本类型值</td>
+  </tr>
+  <tr>
+    <td><code>dbus_message_iter_next</code></td>
+    <td><code>dbus_bool_t dbus_message_iter_next(DBusMessageIter *iter)</code></td>
+    <td>将迭代器推进到下一个字段（同级）</td>
+  </tr>
+  <tr>
+    <td><code>dbus_message_iter_recurse</code></td>
+    <td><code>void dbus_message_iter_recurse(DBusMessageIter *iter, DBusMessageIter *sub)</code></td>
+    <td>进入容器类型（ARRAY/VARIANT/DICT_ENTRY/STRUCT）的内部，sub 指向容器内第一个元素</td>
+  </tr>
+  <tr>
+    <td><code>dbus_message_iter_open_container</code></td>
+    <td><code>dbus_bool_t dbus_message_iter_open_container(DBusMessageIter *iter, int type, const char *sig, DBusMessageIter *sub)</code></td>
+    <td>打开一个容器（写方向），准备向内部追加元素。sig 为容器签名</td>
+  </tr>
+  <tr>
+    <td><code>dbus_message_iter_close_container</code></td>
+    <td><code>dbus_bool_t dbus_message_iter_close_container(DBusMessageIter *iter, DBusMessageIter *sub)</code></td>
+    <td>关闭之前打开的容器，标记容器结束</td>
+  </tr>
+</table>
+
+<div class="box tip">
+  <strong>迭代器 vs append_args/get_args 决策树</strong><br>
+  参数是否包含 VARIANT / ARRAY / DICT_ENTRY / STRUCT？<br>
+  • 否 → 用 <code>dbus_message_append_args</code> / <code>dbus_message_get_args</code>（简洁）<br>
+  • 是 → 必须用 <code>DBusMessageIter</code>（手动逐层构造/解析）
+</div>
+
+<p><em>使用位置: dbus_properties_server.cpp (写 VARIANT), dbus_properties_client.cpp (读 VARIANT)</em></p>
+
+<h3>9.5 信号相关</h3>
+
+<table>
+  <tr><th>API</th><th>签名</th><th>说明</th></tr>
+  <tr>
+    <td><code>dbus_bus_add_match</code></td>
+    <td><code>void dbus_bus_add_match(DBusConnection *conn, const char *rule, DBusError *error)</code></td>
+    <td>向 daemon 注册 match rule（信号订阅）。daemon 仅转发匹配的信号到此连接</td>
+  </tr>
+  <tr>
+    <td><code>dbus_bus_remove_match</code></td>
+    <td><code>void dbus_bus_remove_match(DBusConnection *conn, const char *rule, DBusError *error)</code></td>
+    <td>取消 match rule，停止接收对应信号</td>
+  </tr>
+</table>
+
+<p><strong>Match Rule 字符串语法示例：</strong></p>
+<pre><code>"type='signal',interface='com.example.Iface',member='ValueChanged'"
+"type='signal',sender=':1.42'"
+"type='signal',path='/org/freedesktop/UPower'"
+"type='signal',path_namespace='/org/freedesktop'"</code></pre>
+
+<p><em>使用位置: dbus_signal_receiver.cpp:31-37, dbus_signal_receiver.cpp:80</em></p>
+
+<h3>9.6 消息发送与回复</h3>
+
+<table>
+  <tr><th>API</th><th>签名</th><th>说明</th></tr>
+  <tr>
+    <td><code>dbus_connection_send</code></td>
+    <td><code>dbus_bool_t dbus_connection_send(DBusConnection *conn, DBusMessage *msg, dbus_uint32_t *serial)</code></td>
+    <td>异步发送消息到 daemon。立即返回，不等待回复。serial 可传 NULL 不关心序列号</td>
+  </tr>
+  <tr>
+    <td><code>dbus_connection_send_with_reply_and_block</code></td>
+    <td><code>DBusMessage* dbus_connection_send_with_reply_and_block(DBusConnection *conn, DBusMessage *msg, int timeout_ms, DBusError *error)</code></td>
+    <td><strong>同步发送</strong>请求并阻塞等待回复。返回 METHOD_RETURN 消息指针。timeout_ms 使用 <code>DBUS_TIMEOUT_USE_DEFAULT</code>（约 25 秒）</td>
+  </tr>
+</table>
+
+<table>
+  <tr><th></th><th><code>send</code></th><th><code>send_with_reply_and_block</code></th></tr>
+  <tr><td>模式</td><td>异步，fire-and-forget</td><td>同步，阻塞等待</td></tr>
+  <tr><td>适用</td><td>信号、不需要回复的消息</td><td>method_call 客户端</td></tr>
+  <tr><td>回复</td><td>不关心</td><td>返回 reply 消息指针</td></tr>
+  <tr><td>线程</td><td>不阻塞</td><td>阻塞调用线程</td></tr>
+</table>
+
+<p><em>使用位置: dbus_client.cpp:42-44 (同步调用), dbus_server.cpp:45 (发送回复), dbus_signal_sender.cpp:52 (发送信号)</em></p>
+
+<h3>9.7 服务与名称管理</h3>
+
+<table>
+  <tr><th>API</th><th>签名</th><th>说明</th></tr>
+  <tr>
+    <td><code>dbus_bus_request_name</code></td>
+    <td><code>int dbus_bus_request_name(DBusConnection *conn, const char *name, unsigned int flags, DBusError *error)</code></td>
+    <td>向 daemon 请求 Service Name 所有权。返回值为 reply code</td>
+  </tr>
+  <tr>
+    <td><code>dbus_connection_register_object_path</code></td>
+    <td><code>dbus_bool_t dbus_connection_register_object_path(DBusConnection *conn, const char *path, const DBusObjectPathVTable *vtable, void *user_data)</code></td>
+    <td>向 daemon 注册 Object Path，绑定 vtable 回调。此后发往此路径的消息将触发 vtable 中的 message_function</td>
+  </tr>
+</table>
+
+<table>
+  <tr><th>Name Flag</th><th>值</th><th>作用</th></tr>
+  <tr><td><code>DBUS_NAME_FLAG_REPLACE_EXISTING</code></td><td><code>0x2</code></td><td>如果名称已被占用，替换原所有者</td></tr>
+  <tr><td><code>DBUS_NAME_FLAG_ALLOW_REPLACEMENT</code></td><td><code>0x1</code></td><td>允许未来的其他进程替换本进程</td></tr>
+  <tr><td><code>DBUS_NAME_FLAG_DO_NOT_QUEUE</code></td><td><code>0x4</code></td><td>不可替换时不排队，直接失败</td></tr>
+</table>
+
+<p><em>使用位置: dbus_server.cpp:77-78, dbus_activation_server.cpp:54-57</em></p>
+
+<h3>9.8 事件循环</h3>
+
+<table>
+  <tr><th>API</th><th>签名</th><th>说明</th></tr>
+  <tr>
+    <td><code>dbus_connection_read_write_dispatch</code></td>
+    <td><code>dbus_bool_t dbus_connection_read_write_dispatch(DBusConnection *conn, int timeout_ms)</code></td>
+    <td><strong>三步合一</strong>：read socket → write buffer → dispatch to handlers。参数 <code>-1</code> 表示无限等待。返回 TRUE 表示有消息被分发</td>
+  </tr>
+  <tr>
+    <td><code>dbus_connection_read_write</code></td>
+    <td><code>dbus_bool_t dbus_connection_read_write(DBusConnection *conn, int timeout_ms)</code></td>
+    <td>只执行 read+write，<strong>不执行 dispatch</strong>。需要手动调用 <code>pop_message</code> 取出消息处理</td>
+  </tr>
+  <tr>
+    <td><code>dbus_connection_pop_message</code></td>
+    <td><code>DBusMessage* dbus_connection_pop_message(DBusConnection *conn)</code></td>
+    <td>从接收队列头部取出下一条消息。返回 NULL 表示队列为空</td>
+  </tr>
+</table>
+
+<table>
+  <tr><th></th><th><code>read_write_dispatch</code></th><th><code>read_write + pop_message</code></th></tr>
+  <tr><td>分发方式</td><td>自动分发给 vtable handler</td><td>手动从队列取出</td></tr>
+  <tr><td>适用场景</td><td><strong>Server 端</strong>（注册了 object path）</td><td><strong>信号接收端</strong>（无 vtable，自行解析）</td></tr>
+  <tr><td>线程模型</td><td>回调在调用线程中执行</td><td>调用线程主动拉取</td></tr>
+</table>
+
+<p><em>使用位置: dbus_server.cpp:101 (vtable 自动分发), dbus_signal_receiver.cpp:46-49 (手动拉取信号)</em></p>
+
+<h3>9.9 DBusObjectPathVTable 结构体</h3>
+
+<pre><code>typedef struct {
+    DBusObjectPathUnregisterFunction unregister_function;  // 取消注册时回调
+    DBusObjectPathMessageFunction    message_function;     // 收到消息时回调
+    void (*dbus_internal_pad1)(void *);   // libdbus 内部预留，必须为 NULL
+    void (*dbus_internal_pad2)(void *);
+    void (*dbus_internal_pad3)(void *);
+    void (*dbus_internal_pad4)(void *);
+} DBusObjectPathVTable;
+
+// message_function 返回值：
+//   DBUS_HANDLER_RESULT_HANDLED          — 已处理，不再传递
+//   DBUS_HANDLER_RESULT_NOT_YET_HANDLED  — 未处理，继续寻找其他 handler</code></pre>
+
+<div class="box warning">
+  <strong>C++ 注意事项</strong><br>
+  使用 designated initializers 时，<code>dbus_internal_pad1~4</code> 必须显式初始化为 <code>nullptr</code>，否则编译器可能不自动填充。
+</div>
+
+<p><em>使用位置: dbus_server.cpp:51-58, dbus_activation_server.cpp:36-39</em></p>
+
+<h3>9.10 常用常量</h3>
+
+<table>
+  <tr><th>常量</th><th>值</th><th>说明</th></tr>
+  <tr><td><code>DBUS_BUS_SESSION</code></td><td><code>0</code></td><td>Session Bus 类型</td></tr>
+  <tr><td><code>DBUS_BUS_SYSTEM</code></td><td><code>1</code></td><td>System Bus 类型</td></tr>
+  <tr><td><code>DBUS_TIMEOUT_USE_DEFAULT</code></td><td><code>-1</code></td><td>使用默认超时（约 25 秒）</td></tr>
+  <tr><td><code>DBUS_TYPE_INVALID</code></td><td><code>0</code></td><td>无效类型，标记参数列表或迭代结束</td></tr>
+  <tr><td><code>DBUS_HANDLER_RESULT_HANDLED</code></td><td><code>0</code></td><td>handler 已处理消息</td></tr>
+  <tr><td><code>DBUS_HANDLER_RESULT_NOT_YET_HANDLED</code></td><td><code>1</code></td><td>handler 未处理，允许传递</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="summary">10. 总结</h2>
+
+<div class="box tip">
+  <strong>D-Bus 核心优势</strong><br>
+  • <strong>去中心化</strong> — 进程间通过 daemon 中转，不需要知道对方的具体位置<br>
+  • <strong>类型安全</strong> — 强类型序列化系统，编译期/运行时可检测类型错误<br>
+  • <strong>服务发现</strong> — Service Name 机制提供全局唯一的服务标识<br>
+  • <strong>按需启动</strong> — 服务激活机制对客户端透明<br>
+  • <strong>安全控制</strong> — XML 策略文件 + SELinux/AppArmor 集成<br>
+  • <strong>标准化</strong> — 预定义的接口（Properties, Introspectable, ObjectManager）便于工具链集成<br>
+  • <strong>成熟生态</strong> — systemd, NetworkManager, BlueZ, UPower, PipeWire, polkit 均基于 D-Bus
+</div>
+
+</div>
+
+<footer>
+  D-Bus 详解 &copy; 2026 — 基于 libdbus-1 参考实现<br>
+  规范文档: <a href="https://dbus.freedesktop.org/doc/dbus-specification.html" style="color:var(--accent);">D-Bus Specification</a>
+</footer>
+
+</body>
+</html>

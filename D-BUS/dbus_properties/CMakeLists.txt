@@ -1,0 +1,9 @@
+add_executable(dbus_properties_server dbus_properties_server.cpp)
+target_include_directories(dbus_properties_server PRIVATE ${DBUS_INCLUDE_DIRS})
+target_compile_options(dbus_properties_server PRIVATE ${DBUS_CFLAGS_OTHER})
+target_link_libraries(dbus_properties_server PRIVATE ${DBUS_LIBRARIES})
+
+add_executable(dbus_properties_client dbus_properties_client.cpp)
+target_include_directories(dbus_properties_client PRIVATE ${DBUS_INCLUDE_DIRS})
+target_compile_options(dbus_properties_client PRIVATE ${DBUS_CFLAGS_OTHER})
+target_link_libraries(dbus_properties_client PRIVATE ${DBUS_LIBRARIES})

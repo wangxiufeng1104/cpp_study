@@ -1,0 +1,9 @@
+add_executable(dbus_activation_server dbus_activation_server.cpp)
+target_include_directories(dbus_activation_server PRIVATE ${DBUS_INCLUDE_DIRS})
+target_compile_options(dbus_activation_server PRIVATE ${DBUS_CFLAGS_OTHER})
+target_link_libraries(dbus_activation_server PRIVATE ${DBUS_LIBRARIES})
+
+add_executable(dbus_activation_client dbus_activation_client.cpp)
+target_include_directories(dbus_activation_client PRIVATE ${DBUS_INCLUDE_DIRS})
+target_compile_options(dbus_activation_client PRIVATE ${DBUS_CFLAGS_OTHER})
+target_link_libraries(dbus_activation_client PRIVATE ${DBUS_LIBRARIES})
